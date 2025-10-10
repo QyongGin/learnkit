@@ -1,69 +1,57 @@
 package com.learnkit.backend.controller;
 
 
-import com.learnkit.backend.domain.Schedule;
-import com.learnkit.backend.dto.ScheduleCreateRequestDto;
-import com.learnkit.backend.dto.ScheduleResponseDto;
-import com.learnkit.backend.dto.ScheduleUpdateRequestDto;
+import com.learnkit.backend.dto.ScheduleDto;
 import com.learnkit.backend.service.ScheduleService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
-@RestController // REST API 컨트롤러임을 나타낸다.
-@RequestMapping("/api") // 모든 메소드는 /api/users/{userId}/schedules 라는 공통 주소를 갖는다.
+
+
+// 클라이언트가 HTTP 요청을 보내면 Spring 서버가 @RestController가 붙은 UserController에서 이 요청을 처리할 메서드를 찾는다.
+// 메서드는 Dto 객체를 생성해서 반환한다. @RestController 덕분에 Spring은 Dto 객체를 HTML로 바꾸지 않고 JSON 데이터로 자동 변환하여 클라이언트에게 응답한다.
+
+@RestController // REST API 컨트롤러임을 Spring에게 알려서 메서드가 반환하는건 클라이언트에게 전달할 데이터라고 알린다.
+@RequestMapping("/api") // 모든 메소드는 /api 라는 공통 주소를 갖는다.
 @RequiredArgsConstructor // final 필드에 대한 생성자 생성
 public class ScheduleController {
 
     private final ScheduleService scheduleService; // 로직을 수행할 Service 가져오기
 
-    @PostMapping("/users/{userId}/schedules") // HTTP POST 요청을 이 메소드와 매핑한다.
-    public ResponseEntity<ScheduleResponseDto> createSchedule(@RequestBody ScheduleCreateRequestDto requestDto) {
-        // @RequestBody: 클라이언트가 보낸 JSON 형태의 요청 데이터를 Dto 객체로 자동 변환해서 넣어달라 스프링에게 요청한다.
-        // 1. Service를 호출하여 비즈니스 로직을 수행하고, 생성된 Schedule 객체를 받는다.
-        Schedule createdSchedule = scheduleService.createSchedule(requestDto);
-
-        // 2. Service로부터 받은 Domain 객체를 응답용 DTO로 변환한다.
-        // ResponseEntity.ok()는 HTTP 상태 코드 200 (성공)을 의미한다.
-        ScheduleResponseDto responseDto = new ScheduleResponseDto(createdSchedule);
-
-        // 3. DTO를 담아서 클라이언트에게 반환한다.
-        return ResponseEntity.ok(responseDto);
+    @PostMapping("/users/{userId}/schedules")
+    public ResponseEntity<ScheduleDto.Response> createSchedule(@PathVariable Long userId, @RequestBody ScheduleDto.CreateRequest requestDto) {
+        ScheduleDto.Response responseDto = scheduleService.createSchedule(userId,requestDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(responseDto); // ResponseEntity: HTTP 응답 전체를 담는 덩어리(Entity)
     }
 
     @GetMapping("/users/{userId}/schedules")
-    public ResponseEntity<List<ScheduleResponseDto>> getSchedulesByUserId(@PathVariable Long userId) {
-        // @PathVariable: 이름 그대로 경로의 변수 값을 가져오는 스프링 어노테이션.
-        List<Schedule> schedules = scheduleService.findSchedulesByUserId(userId);
-        // Service에서 받은 Domain 객체 리스트를 DTO 리스트로 변환
-        List<ScheduleResponseDto> responseDtos = schedules.stream()
-                .map(ScheduleResponseDto::new) // .map(schedule -> new ScheduleResponseDto(schedule)) 와 동일
-                .toList();
+    public ResponseEntity<List<ScheduleDto.Response>> getSchedulesByUserId(@PathVariable Long userId) {
+        List<ScheduleDto.Response> responseDtos = scheduleService.findSchedulesByUserId(userId);
         return ResponseEntity.ok(responseDtos);
     }
 
-    @GetMapping("/schedules/{scheduleId}") // 처음에 사용자의 일정 목록을 보여주기 때문에 클라이언트는 스케줄 ID를 안다.
-    public ResponseEntity<ScheduleResponseDto> getScheduleById(@PathVariable Long scheduleId) {
-        Schedule schedule = scheduleService.findScheduleById(scheduleId);
-        // Service에서 받은 Domain 객체를 응답용 DTO로 변환
-        return ResponseEntity.ok(new ScheduleResponseDto(schedule));
+    // 일정 상세 조회
+    @GetMapping("/schedules/{scheduleId}")
+    public ResponseEntity<ScheduleDto.Response> getScheduleById(@PathVariable Long scheduleId) {
+        ScheduleDto.Response responseDto = scheduleService.findScheduleById(scheduleId);
+        return ResponseEntity.ok(responseDto);
     }
 
-
+    // 일정 갱신
     @PatchMapping("/schedules/{scheduleId}")
-    public ResponseEntity<ScheduleResponseDto> updateSchedule(@PathVariable Long scheduleId,
-                                                              @RequestBody ScheduleUpdateRequestDto requestDto) {
-
-        Schedule updatedSchedule = scheduleService.updateSchedule(scheduleId, requestDto);
-        return ResponseEntity.ok(new ScheduleResponseDto(updatedSchedule));
+    public ResponseEntity<ScheduleDto.Response> updateSchedule(@PathVariable Long scheduleId,
+                                                              @RequestBody ScheduleDto.UpdateRequest requestDto) {
+        ScheduleDto.Response responseDto = scheduleService.updateSchedule(scheduleId, requestDto);
+        return ResponseEntity.ok(responseDto);
     }
 
+    // 일정 삭제
     @DeleteMapping("/schedules/{scheduleId}")
     public ResponseEntity<Void> deleteSchedule(@PathVariable Long scheduleId) {
         scheduleService.deleteSchedule(scheduleId);
-
         // 삭제 후에는 보낼만한 내용이 없기에 내용 없음을 의미하는 204 No Content 상태를 응답한다.
         return ResponseEntity.noContent().build();
     }
