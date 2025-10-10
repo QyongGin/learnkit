@@ -3,61 +3,41 @@ package com.learnkit.backend.domain;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/**
- * 'schedules' 테이블의 데이터 구조를 나타내는 Domain 클래스.
- * JPA에서는 'Entity'라고 부르며, 데이터베이스 테이블과 직접 매핑된다.
- */
 
-// 데이터베이스 테이블과 매핑되는 엔티티임을 알려준다.
 @Entity
-
-// 클래스 위에 이 어노테이션 하나만 붙이면 컴파일 시점에 모든 필드의 get() 메소드를 자동으로 만들어준다.
 @Getter
-@Setter
-
-// 인자 없는 기본 생성자를 자동으로 만들어준다. public Schedule(){} 같은 코드.
-// 이런 기본 생성자는JPA 같은 프레임워크가 객체 생성 시 내부적으로 꼭 필요하므로 붙여주는게 좋다.
-@NoArgsConstructor
-
-// Schedule 클래스를 보고 JAP는 테이블이 schedule이라 추측함. 정정.
+@NoArgsConstructor // 기본 생성자 생성.
 @Table(name = "schedules")
-public class Schedule {
+public class Schedule extends BaseTimeEntity{
 
-    @Id // 이 필드가 테이블의 기본 키(Primary Key)임을 알려준다.
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // 기본 키 값을 DB가 자동 생성하도록 설정한다.
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // 기본 키 값을 DB가 컬럼 기능에 맞게 자동 생성하도록 설정한다.
     private Long id; // 학습 일정 고유 식별자 (PK)
 
-    // user_id는 나중에 User 엔티티와 연관관계를 맺을 때 처리.
-    // private Long userId;
+    // fetch: JPA에게 연관된 엔티티(User)를 DB에서 어떤 방식과 시점에 가져올지를 설정하는 옵션. 가져오기 방식.
+    // FetchType: fetch 방식의 종류를 모은 클래스. 가져오기 유형. LAZY,EAGER
+    // LAZY: fetch의 구체적인 방식을 지연 로딩(Lazy Loading)으로 선택.
+    // User 정보가 필요 없다면 JOIN 시키지 않는다. 앱 성능 향상. getUser().getNickName()처럼 필드에 실제로 접근할 시 JOIN 그 전까지는 가짜 객체(프록시)
+    @ManyToOne(fetch = FetchType.LAZY) // User와 다대일 관계 설정 N(Schedule) : 1(USer)
+    @JoinColumn(name = "user_id")      // DB의 user_id 컬럼과 매핑
+    private User user;                 // User 객체를 직접 참조
 
-    // 학습 일정의 소유자
-    private Long userId;
-
-    // 일정의 제목
+    @Column(nullable = false)
     private String title;
 
-    @Lob // 상세 설명처럼 긴 텍스트를 위한 어노테이션.
-    // 일정 설명
+    @Lob // TEXT 타입과 매핑되며 긴 텍스트가 필요하다면 사용한다.
     private String description;
 
-    // 시작 시각 (DB의 TIMESTAMP 타입은 자바의 LocalDateTime과 잘 매핑된다.)
+    @Column(nullable = false)
     private LocalDateTime startTime;
 
-    // 종료 시각
+    @Column(nullable = false)
     private LocalDateTime endTime;
 
-    // 일정 완료 여부
     private boolean isCompleted;
-
-    // 일정 생성 일시
-    private LocalDateTime createdAt;
-
-    // 일정 수정 일시
-    private LocalDateTime updatedAt;
 
     // DTO에서 Entity로 변환 시 사용할 생성자
     public Schedule(String title,String description, LocalDateTime startTime, LocalDateTime endTime) {
@@ -65,14 +45,31 @@ public class Schedule {
         this.description = description;
         this.startTime = startTime;
         this.endTime = endTime;
-        this.isCompleted = false; // 새로 만들었으니 아직 미완료
+        this.isCompleted = false;
     }
 
+    public void setUser(User user) {
+        this.user = user;
+    }
 
-    @PrePersist // 엔티티가 save() 호출로 처음 저장되기 전에 실행된다.
-    public void onPrePersist() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = this.createdAt;
+    // 갱신
+    public void update(String title, String description, LocalDateTime startTime, LocalDateTime endTime, Boolean isCompleted) {
+        // PATCH 동작을 위해 null이 아닌 값만 변경
+        if (title != null) {
+            this.title = title;
+        }
+        if (description != null) {
+            this.description = description;
+        }
+        if (startTime != null) {
+            this.startTime = startTime;
+        }
+        if (endTime != null) {
+            this.endTime = endTime;
+        }
+        if (isCompleted != null) {
+            this.isCompleted = isCompleted;
+        }
     }
 }
 
