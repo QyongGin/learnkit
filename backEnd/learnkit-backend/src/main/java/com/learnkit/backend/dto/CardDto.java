@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Card(카드/단어) 관련 DTO들을 관리하는 클래스
@@ -125,6 +126,47 @@ public class CardDto {
             this.normalCount = normalCount;
             this.hardCount = hardCount;
             this.totalCount = easyCount + normalCount + hardCount;
+        }
+    }
+
+    /**
+     * 단어장별 카드 통계 DTO (단어장 목록용)
+     * <p>
+     * 단어장 ID, 이름과 함께 해당 단어장의 카드 통계를 제공.
+     * </p>
+     */
+    @Getter
+    public static class WordBookStatistics {
+        private final Long wordBookId;
+        private final String wordBookName;
+        private final long easyCount;
+        private final long normalCount;
+        private final long hardCount;
+        private final long totalCount;
+
+        public WordBookStatistics(Long wordBookId, String wordBookName, long easyCount, long normalCount, long hardCount) {
+            this.wordBookId = wordBookId;
+            this.wordBookName = wordBookName;
+            this.easyCount = easyCount;
+            this.normalCount = normalCount;
+            this.hardCount = hardCount;
+            this.totalCount = easyCount + normalCount + hardCount;
+        }
+    }
+
+    /**
+     * 사용자의 모든 단어장 카드 통계 배치 응답 DTO
+     * <p>
+     * 한 번의 API 호출로 모든 단어장의 통계를 조회.
+     * N+1 문제 해결용.
+     * </p>
+     */
+    @Getter
+    public static class BatchStatisticsResponse {
+        private final List<WordBookStatistics> wordbooks;
+
+        public BatchStatisticsResponse(List<WordBookStatistics> wordbooks) {
+            this.wordbooks = wordbooks;
         }
     }
 }

@@ -140,4 +140,17 @@ public class CardController {
         CardDto.StatisticsResponse statistics = cardService.getCardStatisticsByWordBookId(wordBookId);
         return ResponseEntity.ok(statistics);
     }
+
+    /**
+     * 사용자의 모든 단어장에 대한 카드 통계를 한 번에 조회함.
+     * 단어장 목록 UI에서 N+1 문제 해결용 배치 API.
+     *
+     * @param userId 사용자 ID
+     * @return 모든 단어장의 카드 통계 목록
+     */
+    @GetMapping("/users/{userId}/wordbooks/cards/statistics")
+    public ResponseEntity<CardDto.BatchStatisticsResponse> getBatchCardStatistics(@PathVariable Long userId) {
+        CardDto.BatchStatisticsResponse statistics = cardService.getBatchCardStatisticsByUserId(userId);
+        return ResponseEntity.ok(statistics);
+    }
 }

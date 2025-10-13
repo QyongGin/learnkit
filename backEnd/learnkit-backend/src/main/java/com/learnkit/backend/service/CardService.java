@@ -159,4 +159,35 @@ public class CardService {
 
         return new CardDto.StatisticsResponse(easyCount, normalCount, hardCount);
     }
+
+    /**
+     * 사용자의 모든 단어장에 대한 카드 통계를 한 번에 조회함.
+     * N+1 문제 해결을 위한 배치 조회.
+     *
+     * @param userId 사용자 ID
+     * @return 모든 단어장의 카드 통계 목록
+     */
+    public CardDto.BatchStatisticsResponse getBatchCardStatisticsByUserId(Long userId) {
+        // 사용자의 모든 단어장 조회
+        List<WordBook> wordBooks = wordBookRepository.findByUserId(userId);
+
+        // 각 단어장의 통계를 조회하여 DTO로 변환
+        List<CardDto.WordBookStatistics> statistics = wordBooks.stream()
+                .map(wordBook -> {
+                    long easyCount = cardRepository.countByWordBookIdAndDifficulty(wordBook.getId(), Card.Difficulty.EASY);
+                    long normalCount = cardRepository.countByWordBookIdAndDifficulty(wordBook.getId(), Card.Difficulty.NORMAL);
+                    long hardCount = cardRepository.countByWordBookIdAndDifficulty(wordBook.getId(), Card.Difficulty.HARD);
+
+                    return new CardDto.WordBookStatistics(
+                            wordBook.getId(),
+                            wordBook.getTitle(),
+                            easyCount,
+                            normalCount,
+                            hardCount
+                    );
+                })
+                .toList();
+
+        return new CardDto.BatchStatisticsResponse(statistics);
+    }
 }
