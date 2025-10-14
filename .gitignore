@@ -1,0 +1,61 @@
+### IntelliJ IDEA ###
+.idea/
+*.iml
+out/
+
+### Java / Gradle ###
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+*.log
+
+### Flutter (프론트엔드) ###
+# Dart / Flutter
+front/.dart_tool/
+front/.flutter-plugins
+front/.flutter-plugins-dependencies
+front/.packages
+front/pubspec.lock
+front/build/
+
+# iOS
+front/ios/Pods/
+front/ios/.symlinks/
+front/ios/Flutter/Flutter.framework
+front/ios/Flutter/Flutter.podspec
+front/ios/.generated/
+front/ios/Runner.xcworkspace/xcuserdata/
+front/ios/Runner.xcodeproj/xcuserdata/
+front/ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Android
+front/android/.gradle/
+front/android/captures/
+front/android/gradlew
+front/android/gradlew.bat
+front/android/local.properties
+front/android/app/debug/
+front/android/app/profile/
+front/android/app/release/
+
+# macOS
+front/macos/Flutter/GeneratedPluginRegistrant.swift
+front/macos/Flutter/ephemeral/
+
+# Linux
+front/linux/flutter/ephemeral/
+
+# Windows
+front/windows/flutter/ephemeral/
+
+### macOS ###
+.DS_Store
+.AppleDouble
+.LSOverride
+
+### 기타 ###
+.env
+*.swp
+*.swo
+*~
