@@ -23,8 +23,12 @@ public class CardDto {
     public static class CreateRequest {
         private String frontText;  // 앞면 (질문/단어)
         private String backText;   // 뒷면 (답/뜻)
+        private Card.Difficulty difficulty;  // 초기 난이도 (선택사항, null 가능)
 
         public Card toEntity() {
+            if (difficulty != null) {
+                return new Card(this.frontText, this.backText, this.difficulty);
+            }
             return new Card(this.frontText, this.backText);
         }
     }
@@ -39,6 +43,7 @@ public class CardDto {
     public static class UpdateRequest {
         private String frontText;
         private String backText;
+        private Card.Difficulty difficulty;  // 난이도 수정 (선택사항, null 가능)
     }
 
     /**

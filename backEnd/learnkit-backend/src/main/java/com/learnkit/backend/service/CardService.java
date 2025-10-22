@@ -33,7 +33,7 @@ public class CardService {
         WordBook wordBook = wordBookRepository.findById(wordBookId)
                 .orElseThrow(() -> new WordBookNotFoundException(wordBookId));
 
-        Card card = requestDto.toEntity();
+        Card card = requestDto.toEntity();  // 생성자에서 difficulty 처리
         card.setWordBook(wordBook);
 
         Card savedCard = cardRepository.save(card);
@@ -95,8 +95,10 @@ public class CardService {
 
         card.update(
                 requestDto.getFrontText(),
-                requestDto.getBackText()
+                requestDto.getBackText(),
+                requestDto.getDifficulty()
         );
+
         return new CardDto.Response(card);
     }
 

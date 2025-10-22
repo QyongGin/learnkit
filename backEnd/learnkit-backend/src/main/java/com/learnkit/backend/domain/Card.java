@@ -61,6 +61,20 @@ public class Card extends BaseTimeEntity {
         // difficulty는 null로 시작 (사용자가 첫 복습 시 선택)
     }
 
+    /**
+     * 카드 생성자 (초기 난이도 포함)
+     *
+     * @param frontText 앞면 텍스트 (질문/단어)
+     * @param backText 뒷면 텍스트 (답/뜻)
+     * @param difficulty 초기 난이도
+     */
+    public Card(String frontText, String backText, Difficulty difficulty) {
+        this.frontText = frontText;
+        this.backText = backText;
+        this.difficulty = difficulty;
+        this.nextReviewAt = LocalDateTime.now();
+    }
+
     public void setWordBook(WordBook wordBook) {
         this.wordBook = wordBook;
     }
@@ -70,13 +84,17 @@ public class Card extends BaseTimeEntity {
      *
      * @param frontText 수정할 앞면 텍스트
      * @param backText 수정할 뒷면 텍스트
+     * @param difficulty 수정할 난이도
      */
-    public void update(String frontText, String backText) {
+    public void update(String frontText, String backText, Difficulty difficulty) {
         if (frontText != null) {
             this.frontText = frontText;
         }
         if (backText != null) {
             this.backText = backText;
+        }
+        if (difficulty != null) {
+            this.difficulty = difficulty;
         }
     }
 
