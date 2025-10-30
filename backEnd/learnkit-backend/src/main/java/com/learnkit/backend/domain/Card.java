@@ -30,10 +30,10 @@ public class Card extends BaseTimeEntity {
     private String backText;   // 뒷면 텍스트 (답/뜻)
 
     @Column(nullable = false)
-    private LocalDateTime nextReviewAt;  // 다음 복습 시간
+    private Long reviewPriority;  // 우선순위 점수 (작을수록 먼저)
 
     @Column
-    private LocalDateTime lastReviewedAt;  // 마지막 복습 시간 (nullable)
+    private LocalDateTime lastReviewedAt;  // 마지막 복습 시간 (통계용)
 
     @Column(nullable = false)
     private int viewCount = 0;  // 조회 횟수
@@ -49,19 +49,6 @@ public class Card extends BaseTimeEntity {
     }
 
     /**
-     * 카드 생성자
-     *
-     * @param frontText 앞면 텍스트 (질문/단어)
-     * @param backText 뒷면 텍스트 (답/뜻)
-     */
-    public Card(String frontText, String backText) {
-        this.frontText = frontText;
-        this.backText = backText;
-        this.nextReviewAt = LocalDateTime.now();  // 생성 직후 바로 복습 가능
-        // difficulty는 null로 시작 (사용자가 첫 복습 시 선택)
-    }
-
-    /**
      * 카드 생성자 (초기 난이도 포함)
      *
      * @param frontText 앞면 텍스트 (질문/단어)
@@ -72,7 +59,7 @@ public class Card extends BaseTimeEntity {
         this.frontText = frontText;
         this.backText = backText;
         this.difficulty = difficulty;
-        this.nextReviewAt = LocalDateTime.now();
+        this.reviewPriority = 0L;  // 기본값, 세션 시작 시 재계산
     }
 
     public void setWordBook(WordBook wordBook) {
@@ -100,22 +87,26 @@ public class Card extends BaseTimeEntity {
 
     /**
      * 난이도를 선택하여 카드를 복습함.
-     * 복습 시간을 기록하고, 조회 수를 증가시키며, 다음 복습 시간을 계산함.
+     * 우선순위 점수를 업데이트하고, 복습 시간과 조회 수를 기록함.
      *
      * @param difficulty 사용자가 선택한 난이도
+     * @param interval 해당 난이도의 interval 점수
      */
-    public void reviewWithDifficulty(Difficulty difficulty) {
+    public void reviewWithDifficulty(Difficulty difficulty, long interval) {
         this.difficulty = difficulty;
         this.lastReviewedAt = LocalDateTime.now();
         this.viewCount++;
 
-        // 난이도에 따라 다음 복습 시간 계산
-        int intervalMinutes = switch (difficulty) {
-            case EASY -> wordBook.getEasyIntervalMinutes();
-            case NORMAL -> wordBook.getNormalIntervalMinutes();
-            case HARD -> wordBook.getHardIntervalMinutes();
-        };
+        // 우선순위 점수 누적 (상대 점수 방식)
+        this.reviewPriority += interval;
+    }
 
-        this.nextReviewAt = LocalDateTime.now().plusMinutes(intervalMinutes);
+    /**
+     * 학습 세션 시작 시 카드의 우선순위를 리셋함.
+     *
+     * @param priority 설정할 우선순위 점수
+     */
+    public void resetReviewPriority(long priority) {
+        this.reviewPriority = priority;
     }
 }

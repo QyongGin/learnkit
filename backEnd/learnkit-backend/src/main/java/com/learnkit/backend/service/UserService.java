@@ -6,7 +6,6 @@ import com.learnkit.backend.exception.custom.UserNotFoundException;
 import com.learnkit.backend.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service // 비즈니스 로직을 담당하는 Service 컴포넌트임을 스프링에게 알린다.
@@ -15,7 +14,6 @@ import org.springframework.stereotype.Service;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
     // ID로 사용자 조회
     public UserDto.Response findUserById(Long userId) {
@@ -50,24 +48,20 @@ public class UserService {
         return new UserDto.Response(user);
     }
 
-    // 비밀번호 변경
+    // 비밀번호 변경 (Security 비활성화로 인해 평문 저장)
     public void changePassword(Long userId, UserDto.ChangePasswordRequest requestDto) {
         // 1. DB에서 사용자를 찾아옵니다.
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
         // 2. 현재 비밀번호가 일치하는지 확인합니다.
-        // requestDto.getCurrentPassword() 사용자가 입력한 현재 비밀번호와 user.getPassword() DB에 저장된 비밀번호 비교
-        if (!passwordEncoder.matches(requestDto.getCurrentPassword(), user.getPassword())) {
+        if (!requestDto.getCurrentPassword().equals(user.getPassword())) {
             throw new IllegalArgumentException("현재 비밀번호가 일치하지 않습니다.");
         }
 
-        // 3. 새 비밀번호를 암호화합니다.
-        String encodedNewPassword = passwordEncoder.encode(requestDto.getNewPassword());
+        // 3. 엔티티의 changePassword 메서드를 호출하여 변경합니다.
+        user.changePassword(requestDto.getNewPassword());
 
-        // 4. 엔티티의 changePassword 메서드를 호출하여 변경합니다.
-        user.changePassword(encodedNewPassword);
-
-        // 5. @Transactional에 의해 자동으로 DB에 반영됩니다.
+        // 4. @Transactional에 의해 자동으로 DB에 반영됩니다.
     }
 }

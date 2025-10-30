@@ -153,4 +153,33 @@ public class CardController {
         CardDto.BatchStatisticsResponse statistics = cardService.getBatchCardStatisticsByUserId(userId);
         return ResponseEntity.ok(statistics);
     }
+
+    /**
+     * 학습 세션을 시작함.
+     * 단어장의 모든 카드 우선순위를 난이도별로 리셋.
+     *
+     * @param wordBookId 단어장 ID
+     * @return 세션 시작 정보 (총 카드 수, 난이도별 개수)
+     */
+    @PostMapping("/wordbooks/{wordBookId}/study/start")
+    public ResponseEntity<CardDto.SessionStartResponse> startStudySession(@PathVariable Long wordBookId) {
+        CardDto.SessionStartResponse response = cardService.startStudySession(wordBookId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 다음 학습할 카드를 조회함.
+     * 우선순위(reviewPriority)가 가장 작은 카드 반환.
+     *
+     * @param wordBookId 단어장 ID
+     * @return 다음 카드 (모든 카드를 복습했으면 null)
+     */
+    @GetMapping("/wordbooks/{wordBookId}/study/next")
+    public ResponseEntity<CardDto.Response> getNextCard(@PathVariable Long wordBookId) {
+        CardDto.Response card = cardService.getNextCard(wordBookId);
+        if (card == null) {
+            return ResponseEntity.noContent().build();  // 204 No Content
+        }
+        return ResponseEntity.ok(card);
+    }
 }

@@ -87,9 +87,10 @@ public class WordBookService {
 
         wordBook.update(
                 requestDto.getTitle(),
-                requestDto.getEasyIntervalMinutes(),
-                requestDto.getNormalIntervalMinutes(),
-                requestDto.getHardIntervalMinutes()
+                requestDto.getDescription(),
+                requestDto.getHardFrequencyRatio(),
+                requestDto.getNormalFrequencyRatio(),
+                requestDto.getEasyFrequencyRatio()
         );
 
         return new WordBookDto.Response(wordBook);

@@ -20,18 +20,16 @@ public class WordBookDto {
     @NoArgsConstructor
     public static class CreateRequest {
         private String title;
-        private int easyIntervalMinutes;
-        private int normalIntervalMinutes;
-        private int hardIntervalMinutes;
+        private String description;            // 선택사항
+        private Integer hardFrequencyRatio;    // 선택사항 (null이면 기본값 6)
+        private Integer normalFrequencyRatio;  // 선택사항 (null이면 기본값 3)
+        private Integer easyFrequencyRatio;    // 선택사항 (null이면 기본값 1)
 
-        // 전달용 상자(DTO)에 든 데이터를 Entity로 꺼내서 실제 데이터로 만들기.
         public WordBook toEntity() {
-            return new WordBook(
-                    this.title,
-                    this.easyIntervalMinutes,
-                    this.normalIntervalMinutes,
-                    this.hardIntervalMinutes
-            );
+            if (hardFrequencyRatio != null && normalFrequencyRatio != null && easyFrequencyRatio != null) {
+                return new WordBook(this.title, this.description, this.hardFrequencyRatio, this.normalFrequencyRatio, this.easyFrequencyRatio);
+            }
+            return new WordBook(this.title, this.description);  // 기본값 사용
         }
     }
 
@@ -43,9 +41,10 @@ public class WordBookDto {
     @NoArgsConstructor
     public static class UpdateRequest {
         private String title;
-        private int easyIntervalMinutes;
-        private int normalIntervalMinutes;
-        private int hardIntervalMinutes;
+        private String description;
+        private Integer hardFrequencyRatio;
+        private Integer normalFrequencyRatio;
+        private Integer easyFrequencyRatio;
     }
 
     /**
@@ -55,20 +54,19 @@ public class WordBookDto {
     public static class Response {
         private final Long id;
         private final String title;
-        private final int easyIntervalMinutes;
-        private final int normalIntervalMinutes;
-        private final int hardIntervalMinutes;
+        private final String description;
+        private final int hardFrequencyRatio;
+        private final int normalFrequencyRatio;
+        private final int easyFrequencyRatio;
 
         public Response(WordBook wordBook) {
             this.id = wordBook.getId();
             this.title = wordBook.getTitle();
-            this.easyIntervalMinutes = wordBook.getEasyIntervalMinutes();
-            this.normalIntervalMinutes = wordBook.getNormalIntervalMinutes();
-            this.hardIntervalMinutes = wordBook.getHardIntervalMinutes();
+            this.description = wordBook.getDescription();
+            this.hardFrequencyRatio = wordBook.getHardFrequencyRatio();
+            this.normalFrequencyRatio = wordBook.getNormalFrequencyRatio();
+            this.easyFrequencyRatio = wordBook.getEasyFrequencyRatio();
         }
-
-
-
     }
 
 }

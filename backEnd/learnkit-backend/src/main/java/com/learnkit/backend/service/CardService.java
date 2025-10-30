@@ -104,7 +104,7 @@ public class CardService {
 
     /**
      * 카드를 복습하고 난이도를 선택함.
-     * 복습 시간, 조회 수, 다음 복습 시간이 자동으로 업데이트됨.
+     * 우선순위 점수를 업데이트하고, 복습 시간과 조회 수를 기록함.
      *
      * @param cardId 카드 ID
      * @param requestDto 난이도 선택 정보
@@ -115,11 +115,75 @@ public class CardService {
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new CardNotFoundException(cardId));
 
-        // 난이도 선택 = 복습 완료
-        card.reviewWithDifficulty(requestDto.getDifficulty());
+        WordBook wordBook = card.getWordBook();
+
+        // interval 계산
+        int totalCards = (int) cardRepository.countByWordBookId(wordBook.getId());
+        long baseScore = wordBook.calculateBaseScore(totalCards);
+
+        long interval = switch (requestDto.getDifficulty()) {
+            case HARD -> wordBook.calculateHardInterval(baseScore);
+            case NORMAL -> wordBook.calculateNormalInterval(baseScore);
+            case EASY -> wordBook.calculateEasyInterval(baseScore);
+        };
+
+        // 복습 처리 (점수 누적)
+        card.reviewWithDifficulty(requestDto.getDifficulty(), interval);
 
         // Dirty Checking으로 자동 저장
         return new CardDto.Response(card);
+    }
+
+    /**
+     * 학습 세션 시작: 모든 카드의 우선순위를 리셋
+     *
+     * @param wordBookId 단어장 ID
+     * @return 세션 시작 응답 (총 카드 수, 난이도별 개수 등)
+     * @throws WordBookNotFoundException 단어장을 찾을 수 없는 경우
+     */
+    public CardDto.SessionStartResponse startStudySession(Long wordBookId) {
+        WordBook wordBook = wordBookRepository.findById(wordBookId)
+                .orElseThrow(() -> new WordBookNotFoundException(wordBookId));
+
+        List<Card> cards = cardRepository.findByWordBookId(wordBookId);
+
+        // baseScore 계산
+        int totalCards = cards.size();
+        long baseScore = wordBook.calculateBaseScore(totalCards);
+
+        // 난이도별 interval 계산
+        long hardInterval = wordBook.calculateHardInterval(baseScore);
+        long normalInterval = wordBook.calculateNormalInterval(baseScore);
+        long easyInterval = wordBook.calculateEasyInterval(baseScore);
+
+        // 난이도별 개수 집계
+        int hardCount = 0;
+        int normalCount = 0;
+        int easyCount = 0;
+
+        // 각 카드의 우선순위 리셋
+        for (Card card : cards) {
+            long priority = switch (card.getDifficulty()) {
+                case HARD -> { hardCount++; yield hardInterval; }
+                case NORMAL -> { normalCount++; yield normalInterval; }
+                case EASY -> { easyCount++; yield easyInterval; }
+            };
+            card.resetReviewPriority(priority);
+        }
+
+        return new CardDto.SessionStartResponse(wordBookId, totalCards, hardCount, normalCount, easyCount);
+    }
+
+    /**
+     * 다음 학습할 카드 조회 (우선순위가 가장 작은 카드)
+     *
+     * @param wordBookId 단어장 ID
+     * @return 다음 카드 (없으면 null)
+     */
+    public CardDto.Response getNextCard(Long wordBookId) {
+        return cardRepository.findFirstByWordBookIdOrderByReviewPriorityAsc(wordBookId)
+                .map(CardDto.Response::new)
+                .orElse(null);
     }
 
     /**

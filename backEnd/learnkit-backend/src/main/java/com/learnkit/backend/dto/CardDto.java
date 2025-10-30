@@ -23,13 +23,10 @@ public class CardDto {
     public static class CreateRequest {
         private String frontText;  // 앞면 (질문/단어)
         private String backText;   // 뒷면 (답/뜻)
-        private Card.Difficulty difficulty;  // 초기 난이도 (선택사항, null 가능)
+        private Card.Difficulty difficulty;  // 초기 난이도 (필수)
 
         public Card toEntity() {
-            if (difficulty != null) {
-                return new Card(this.frontText, this.backText, this.difficulty);
-            }
-            return new Card(this.frontText, this.backText);
+            return new Card(this.frontText, this.backText, this.difficulty);
         }
     }
 
@@ -69,15 +66,15 @@ public class CardDto {
         private final Long id;              // 수정/삭제 시 필요
         private final String frontText;     // 질문/단어
         private final String backText;      // 답/뜻
-        private final LocalDateTime nextReviewAt;  // 다음 복습 시간 (UI 표시용)
         private final Card.Difficulty difficulty;  // 현재 난이도 (UI 표시용)
+        private final int viewCount;        // 복습 횟수
 
         public Response(Card card) {
             this.id = card.getId();
             this.frontText = card.getFrontText();
             this.backText = card.getBackText();
-            this.nextReviewAt = card.getNextReviewAt();
             this.difficulty = card.getDifficulty();
+            this.viewCount = card.getViewCount();
         }
     }
 
@@ -93,7 +90,6 @@ public class CardDto {
         private final Long id;
         private final String frontText;
         private final String backText;
-        private final LocalDateTime nextReviewAt;
         private final LocalDateTime lastReviewedAt;  // 마지막 복습 시간
         private final int viewCount;                 // 조회 횟수
         private final Card.Difficulty difficulty;
@@ -104,12 +100,32 @@ public class CardDto {
             this.id = card.getId();
             this.frontText = card.getFrontText();
             this.backText = card.getBackText();
-            this.nextReviewAt = card.getNextReviewAt();
             this.lastReviewedAt = card.getLastReviewedAt();
             this.viewCount = card.getViewCount();
             this.difficulty = card.getDifficulty();
             this.createdAt = card.getCreatedAt();
             this.updatedAt = card.getUpdatedAt();
+        }
+    }
+
+    /**
+     * 학습 세션 시작 응답 DTO
+     * <p>POST /api/wordbooks/{wordBookId}/study/start</p>
+     */
+    @Getter
+    public static class SessionStartResponse {
+        private final Long wordBookId;
+        private final int totalCards;
+        private final int hardCount;
+        private final int normalCount;
+        private final int easyCount;
+
+        public SessionStartResponse(Long wordBookId, int totalCards, int hardCount, int normalCount, int easyCount) {
+            this.wordBookId = wordBookId;
+            this.totalCards = totalCards;
+            this.hardCount = hardCount;
+            this.normalCount = normalCount;
+            this.easyCount = easyCount;
         }
     }
 
