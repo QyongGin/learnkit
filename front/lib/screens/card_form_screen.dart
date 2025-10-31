@@ -106,7 +106,7 @@ class _CardFormScreenState extends State<CardFormScreen> {
             children: [
               const SizedBox(height: 20),
               const Text(
-                '쉬움 보통 어려움',
+                '난이도 설정',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,

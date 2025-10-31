@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/wordbook.dart';
 
-/// 단어장 카드 위젯 - 토스 스타일
+/// 단어장 카드 위젯 - 토스 스타일 가로 레이아웃
 class WordBookCard extends StatelessWidget {
   final WordBook wordBook;
   final VoidCallback onTap;
@@ -22,11 +22,11 @@ class WordBookCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
             offset: const Offset(0, 2),
           ),
         ],
@@ -35,12 +35,11 @@ class WordBookCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // 헤더: 제목과 메뉴
                 Row(
@@ -49,24 +48,25 @@ class WordBookCard extends StatelessWidget {
                       child: Text(
                         wordBook.title,
                         style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.4,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
                           height: 1.3,
+                          color: Color(0xFF191F28),
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (onMenuTap != null) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       GestureDetector(
                         onTap: onMenuTap,
                         child: Container(
-                          padding: const EdgeInsets.all(2),
+                          padding: const EdgeInsets.all(4),
                           child: Icon(
                             Icons.more_vert,
-                            size: 18,
+                            size: 20,
                             color: Colors.grey.shade400,
                           ),
                         ),
@@ -75,45 +75,114 @@ class WordBookCard extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 12),
 
-                // 통계 - 간결한 스타일
-                if (totalCount > 0) ...[
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      if (statistics!.easyCount > 0)
-                        _buildStatBadge(
-                          statistics.easyCount,
-                          '쉬움',
-                          const Color(0xFF20C997),
-                        ),
-                      if (statistics.normalCount > 0)
-                        _buildStatBadge(
-                          statistics.normalCount,
-                          '보통',
-                          const Color(0xFF3182F6),
-                        ),
-                      if (statistics.hardCount > 0)
-                        _buildStatBadge(
-                          statistics.hardCount,
-                          '어려움',
-                          const Color(0xFFFF6B6B),
-                        ),
-                    ],
+                // 단어장 설명
+                if (wordBook.description != null && wordBook.description!.isNotEmpty) ...[
+                  Text(
+                    wordBook.description!,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade700,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: -0.2,
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 16),
                 ] else ...[
                   Text(
-                    '단어를 추가해보세요',
+                    '단어장 설명을 추가해보세요',
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey.shade400,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w400,
                       letterSpacing: -0.2,
+                      fontStyle: FontStyle.italic,
                     ),
                   ),
+                  const SizedBox(height: 16),
                 ],
+
+                // 통계 및 총 카드 수
+                Row(
+                  children: [
+                    // 총 카드 수
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2F4F6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.credit_card,
+                            size: 14,
+                            color: Colors.grey.shade700,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$totalCount개',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade800,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 8),
+
+                    // 난이도별 통계
+                    if (totalCount > 0) ...[
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            if (statistics!.easyCount > 0)
+                              _buildStatBadge(
+                                statistics.easyCount,
+                                '쉬움',
+                                const Color(0xFF20C997),
+                              ),
+                            if (statistics.normalCount > 0)
+                              _buildStatBadge(
+                                statistics.normalCount,
+                                '보통',
+                                const Color(0xFF3182F6),
+                              ),
+                            if (statistics.hardCount > 0)
+                              _buildStatBadge(
+                                statistics.hardCount,
+                                '어려움',
+                                const Color(0xFFEF4444),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      Expanded(
+                        child: Text(
+                          '단어를 추가해보세요',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade400,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
@@ -138,8 +207,8 @@ class WordBookCard extends StatelessWidget {
           Text(
             '$count',
             style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
               color: color,
               letterSpacing: -0.3,
             ),

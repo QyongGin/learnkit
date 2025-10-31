@@ -37,8 +37,27 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     _initAuth();
     _titleController = TextEditingController(text: widget.schedule?.title ?? '');
     _descriptionController = TextEditingController(text: widget.schedule?.description ?? '');
-    _startTime = widget.schedule?.startTime;
-    _endTime = widget.schedule?.endTime;
+
+    // 수정 모드면 기존 일정의 시간 사용, 생성 모드면 선택된 날짜 사용
+    if (widget.schedule != null) {
+      _startTime = widget.schedule!.startTime;
+      _endTime = widget.schedule!.endTime;
+    } else if (widget.selectedDate != null) {
+      // 선택된 날짜를 기본 시작 시간으로 설정
+      _startTime = DateTime(
+        widget.selectedDate!.year,
+        widget.selectedDate!.month,
+        widget.selectedDate!.day,
+        9, 0, // 기본 시작 시간: 오전 9시
+      );
+      _endTime = DateTime(
+        widget.selectedDate!.year,
+        widget.selectedDate!.month,
+        widget.selectedDate!.day,
+        10, 0, // 기본 종료 시간: 오전 10시
+      );
+    }
+
     _isCompleted = widget.schedule?.isCompleted ?? false;
   }
 

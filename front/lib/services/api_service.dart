@@ -4,18 +4,18 @@ import '../models/home_data.dart';
 import '../models/schedule.dart';
 import '../models/wordbook.dart';
 import '../models/card.dart';
+import '../models/user.dart';
 
 class ApiService {
   // 백엔드 서버 주소
   // 자동으로 시뮬레이터/실제 기기 구분
   static String get baseUrl {
-    // 실제 iOS/Android 기기에서는 Mac의 로컬 IP 사용
-    // 시뮬레이터/에뮬레이터는 localhost 사용 가능
-    // 하지만 간단하게 하기 위해 Mac IP 사용 (시뮬레이터에서도 작동)
-    return 'http://192.168.35.141:8080/api';
+    // 시뮬레이터에서 테스트할 때는 localhost 사용
+    return 'http://localhost:8080/api';
 
-    // 시뮬레이터에서 테스트할 때는 아래 주석 해제
-    // return 'http://localhost:8080/api';
+    // 실제 iOS/Android 기기에서는 Mac의 로컬 IP 사용
+    // ⚠️ WiFi 재연결 시 IP가 변경될 수 있음 - ifconfig 명령으로 확인 필요
+    // return 'http://192.168.35.177:8080/api';
   }
 
   /// 홈 화면 데이터를 가져옵니다
@@ -226,9 +226,10 @@ class ApiService {
   static Future<WordBook> createWordBook({
     required int userId,
     required String title,
-    int? easyIntervalMinutes,
-    int? normalIntervalMinutes,
-    int? hardIntervalMinutes,
+    String? description,
+    int? easyFrequencyRatio,
+    int? normalFrequencyRatio,
+    int? hardFrequencyRatio,
   }) async {
     try {
       final Map<String, dynamic> body = {
@@ -236,14 +237,17 @@ class ApiService {
       };
 
       // 선택적 파라미터 추가
-      if (easyIntervalMinutes != null) {
-        body['easyIntervalMinutes'] = easyIntervalMinutes;
+      if (description != null) {
+        body['description'] = description;
       }
-      if (normalIntervalMinutes != null) {
-        body['normalIntervalMinutes'] = normalIntervalMinutes;
+      if (easyFrequencyRatio != null) {
+        body['easyFrequencyRatio'] = easyFrequencyRatio;
       }
-      if (hardIntervalMinutes != null) {
-        body['hardIntervalMinutes'] = hardIntervalMinutes;
+      if (normalFrequencyRatio != null) {
+        body['normalFrequencyRatio'] = normalFrequencyRatio;
+      }
+      if (hardFrequencyRatio != null) {
+        body['hardFrequencyRatio'] = hardFrequencyRatio;
       }
 
       final response = await http.post(
@@ -266,21 +270,23 @@ class ApiService {
   static Future<WordBook> updateWordBook({
     required int wordBookId,
     String? title,
-    int? easyIntervalMinutes,
-    int? normalIntervalMinutes,
-    int? hardIntervalMinutes,
+    String? description,
+    int? easyFrequencyRatio,
+    int? normalFrequencyRatio,
+    int? hardFrequencyRatio,
   }) async {
     try {
       final Map<String, dynamic> body = {};
       if (title != null) body['title'] = title;
-      if (easyIntervalMinutes != null) {
-        body['easyIntervalMinutes'] = easyIntervalMinutes;
+      if (description != null) body['description'] = description;
+      if (easyFrequencyRatio != null) {
+        body['easyFrequencyRatio'] = easyFrequencyRatio;
       }
-      if (normalIntervalMinutes != null) {
-        body['normalIntervalMinutes'] = normalIntervalMinutes;
+      if (normalFrequencyRatio != null) {
+        body['normalFrequencyRatio'] = normalFrequencyRatio;
       }
-      if (hardIntervalMinutes != null) {
-        body['hardIntervalMinutes'] = hardIntervalMinutes;
+      if (hardFrequencyRatio != null) {
+        body['hardFrequencyRatio'] = hardFrequencyRatio;
       }
 
       final response = await http.patch(
@@ -433,5 +439,155 @@ class ApiService {
     }
   }
 
+  // ============================================
+  // 학습(Study) API
+  // ============================================
+
+  /// 학습 세션 시작 (단어장의 모든 카드 우선순위 리셋)
+  static Future<SessionStartResponse> startStudySession(int wordBookId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/wordbooks/$wordBookId/study/start'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return SessionStartResponse.fromJson(json.decode(response.body));
+      } else {
+        throw Exception('Failed to start study session: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to start study session: $e');
+    }
+  }
+
+  /// 다음 학습할 카드 조회 (우선순위 기반)
+  static Future<Card?> getNextCard(int wordBookId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/wordbooks/$wordBookId/study/next'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return Card.fromJson(json.decode(response.body));
+      } else if (response.statusCode == 204) {
+        // 모든 카드 복습 완료
+        return null;
+      } else {
+        throw Exception('Failed to get next card: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to get next card: $e');
+    }
+  }
+
+  /// 카드 복습 완료 (난이도 선택)
+  static Future<Card> reviewCard({
+    required int cardId,
+    required CardDifficulty difficulty,
+  }) async {
+    try {
+      final Map<String, dynamic> body = {
+        'difficulty': difficulty.name,
+      };
+
+      final response = await http.patch(
+        Uri.parse('$baseUrl/cards/$cardId/review'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
+
+      if (response.statusCode == 200) {
+        return Card.fromJson(json.decode(response.body));
+      } else {
+        throw Exception('Failed to review card: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to review card: $e');
+    }
+  }
+
+  // ========================================
+  // User API
+  // ========================================
+
+  /// 사용자 정보 조회 (ID로)
+  static Future<User> fetchUserById(int userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return User.fromJson(data);
+    } else {
+      throw Exception('사용자 정보를 불러오는데 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  /// 사용자 정보 조회 (이메일로)
+  static Future<User> fetchUserByEmail(String email) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/search?email=${Uri.encodeComponent(email)}'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return User.fromJson(data);
+    } else {
+      throw Exception('사용자 정보를 불러오는데 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  /// 프로필 수정
+  static Future<User> updateProfile({
+    required int userId,
+    String? nickname,
+    String? profileImageUrl,
+  }) async {
+    final Map<String, dynamic> body = {};
+    if (nickname != null) body['nickname'] = nickname;
+    if (profileImageUrl != null) body['profileImageUrl'] = profileImageUrl;
+
+    final response = await http.patch(
+      Uri.parse('$baseUrl/users/$userId/profile'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return User.fromJson(data);
+    } else {
+      throw Exception('프로필 수정에 실패했습니다: ${response.statusCode}');
+    }
+  }
+}
+
+/// 학습 세션 시작 응답
+class SessionStartResponse {
+  final int totalCards;
+  final int easyCount;
+  final int normalCount;
+  final int hardCount;
+
+  SessionStartResponse({
+    required this.totalCards,
+    required this.easyCount,
+    required this.normalCount,
+    required this.hardCount,
+  });
+
+  factory SessionStartResponse.fromJson(Map<String, dynamic> json) {
+    return SessionStartResponse(
+      totalCards: json['totalCards'] ?? 0,
+      easyCount: json['easyCount'] ?? 0,
+      normalCount: json['normalCount'] ?? 0,
+      hardCount: json['hardCount'] ?? 0,
+    );
+  }
 }
 

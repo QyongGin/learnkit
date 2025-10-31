@@ -3,6 +3,7 @@ import '../models/wordbook.dart';
 import '../models/card.dart' as model;
 import '../services/api_service.dart';
 import 'card_form_screen.dart';
+import 'study_session_screen.dart';
 
 /// 단어장 상세 화면 - 카드 목록
 class WordBookDetailScreen extends StatefulWidget {
@@ -17,9 +18,15 @@ class WordBookDetailScreen extends StatefulWidget {
   State<WordBookDetailScreen> createState() => _WordBookDetailScreenState();
 }
 
+enum SortType {
+  difficulty, // 난이도순
+  viewCount, // 복습횟수순
+}
+
 class _WordBookDetailScreenState extends State<WordBookDetailScreen> {
   List<model.Card> _cards = [];
   bool _isLoading = true;
+  SortType _currentSort = SortType.difficulty;
 
   @override
   void initState() {
@@ -36,11 +43,48 @@ class _WordBookDetailScreenState extends State<WordBookDetailScreen> {
       final cards = await ApiService.fetchCards(widget.wordBook.id);
       setState(() {
         _cards = cards;
+        _sortCards();
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
+      });
+    }
+  }
+
+  void _sortCards() {
+    if (_currentSort == SortType.difficulty) {
+      // 난이도순: HARD > NORMAL > EASY (어려운 것부터)
+      _cards.sort((a, b) {
+        final aValue = _getDifficultyValue(a.difficulty);
+        final bValue = _getDifficultyValue(b.difficulty);
+        return bValue.compareTo(aValue);
+      });
+    } else {
+      // 복습횟수순: 많이 본 것부터
+      _cards.sort((a, b) => b.viewCount.compareTo(a.viewCount));
+    }
+  }
+
+  int _getDifficultyValue(model.CardDifficulty? difficulty) {
+    switch (difficulty) {
+      case model.CardDifficulty.HARD:
+        return 3;
+      case model.CardDifficulty.NORMAL:
+        return 2;
+      case model.CardDifficulty.EASY:
+        return 1;
+      default:
+        return 0;
+    }
+  }
+
+  void _changeSortType(SortType newSort) {
+    if (_currentSort != newSort) {
+      setState(() {
+        _currentSort = newSort;
+        _sortCards();
       });
     }
   }
@@ -129,24 +173,45 @@ class _WordBookDetailScreenState extends State<WordBookDetailScreen> {
     }
   }
 
+  /// 학습 세션 시작
+  void _startStudySession() {
+    if (_cards.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('학습할 카드가 없습니다')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StudySessionScreen(wordBook: widget.wordBook),
+      ),
+    ).then((_) {
+      // 학습 완료 후 카드 목록 새로고침
+      _loadCards();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.wordBook.title,
           style: const TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.4,
+            color: Color(0xFF191F28),
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
           ),
         ),
       ),
@@ -154,21 +219,154 @@ class _WordBookDetailScreenState extends State<WordBookDetailScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _cards.isEmpty
               ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _loadCards,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: _cards.length,
-                    itemBuilder: (context, index) {
-                      final card = _cards[index];
-                      return _buildCardItem(card);
-                    },
-                  ),
+              : Column(
+                  children: [
+                    // 학습 시작 버튼
+                    _buildStudyButton(),
+
+                    // 정렬 필터
+                    _buildSortFilter(),
+
+                    // 카드 목록
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: _loadCards,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                          itemCount: _cards.length,
+                          itemBuilder: (context, index) {
+                            final card = _cards[index];
+                            return _buildCardItem(card);
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToCardForm(),
         backgroundColor: Colors.black,
         child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  /// 정렬 필터 (토스 스타일)
+  Widget _buildSortFilter() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Row(
+        children: [
+          _buildSortChip(
+            label: '난이도순',
+            isSelected: _currentSort == SortType.difficulty,
+            onTap: () => _changeSortType(SortType.difficulty),
+          ),
+          const SizedBox(width: 8),
+          _buildSortChip(
+            label: '복습횟수순',
+            isSelected: _currentSort == SortType.viewCount,
+            onTap: () => _changeSortType(SortType.viewCount),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF191F28) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF191F28) : Colors.grey.shade300,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected ? Colors.white : Colors.grey.shade700,
+            letterSpacing: -0.3,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 학습 시작 버튼 (토스 스타일)
+  Widget _buildStudyButton() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _startStudySession,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.play_circle_filled, size: 26, color: Colors.white),
+                  const SizedBox(width: 10),
+                  Text(
+                    '학습 시작',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_cards.length}개',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -231,9 +429,10 @@ class _WordBookDetailScreenState extends State<WordBookDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 헤더: 난이도 뱃지 + 삭제 버튼
+                // 헤더: 난이도 뱃지 + 복습횟수 뱃지 + 삭제 버튼
                 Row(
                   children: [
+                    // 난이도 뱃지
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -252,6 +451,38 @@ class _WordBookDetailScreenState extends State<WordBookDetailScreen> {
                           color: _getDifficultyColor(card.difficulty),
                           letterSpacing: -0.2,
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    // 복습횟수 뱃지
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F3F5),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.remove_red_eye_outlined,
+                            size: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${card.viewCount}회',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const Spacer(),

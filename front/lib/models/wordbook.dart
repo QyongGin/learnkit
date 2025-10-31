@@ -4,9 +4,10 @@ import 'card.dart';
 class WordBook {
   final int id;
   final String title;
-  final int easyIntervalMinutes;
-  final int normalIntervalMinutes;
-  final int hardIntervalMinutes;
+  final String? description;      // 단어장 설명 (선택사항)
+  final int easyFrequencyRatio;   // 쉬움 빈도 비율 (기본: 1배)
+  final int normalFrequencyRatio; // 보통 빈도 비율 (기본: 3배)
+  final int hardFrequencyRatio;   // 어려움 빈도 비율 (기본: 6배)
 
   // 통계 정보 (카드 난이도별 개수)
   final CardStatistics? statistics;
@@ -14,9 +15,10 @@ class WordBook {
   WordBook({
     required this.id,
     required this.title,
-    this.easyIntervalMinutes = 20,
-    this.normalIntervalMinutes = 10,
-    this.hardIntervalMinutes = 3,
+    this.description,
+    this.easyFrequencyRatio = 1,
+    this.normalFrequencyRatio = 3,
+    this.hardFrequencyRatio = 6,
     this.statistics,
   });
 
@@ -24,9 +26,10 @@ class WordBook {
     return WordBook(
       id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
       title: json['title'] ?? '',
-      easyIntervalMinutes: json['easyIntervalMinutes'] ?? 20,
-      normalIntervalMinutes: json['normalIntervalMinutes'] ?? 10,
-      hardIntervalMinutes: json['hardIntervalMinutes'] ?? 3,
+      description: json['description'],
+      easyFrequencyRatio: json['easyFrequencyRatio'] ?? 1,
+      normalFrequencyRatio: json['normalFrequencyRatio'] ?? 3,
+      hardFrequencyRatio: json['hardFrequencyRatio'] ?? 6,
       statistics: json['statistics'] != null
           ? CardStatistics.fromJson(json['statistics'])
           : null,
@@ -36,9 +39,10 @@ class WordBook {
   Map<String, dynamic> toJson() {
     return {
       'title': title,
-      'easyIntervalMinutes': easyIntervalMinutes,
-      'normalIntervalMinutes': normalIntervalMinutes,
-      'hardIntervalMinutes': hardIntervalMinutes,
+      'description': description,
+      'easyFrequencyRatio': easyFrequencyRatio,
+      'normalFrequencyRatio': normalFrequencyRatio,
+      'hardFrequencyRatio': hardFrequencyRatio,
     };
   }
 
@@ -47,9 +51,10 @@ class WordBook {
     return WordBook(
       id: id,
       title: title,
-      easyIntervalMinutes: easyIntervalMinutes,
-      normalIntervalMinutes: normalIntervalMinutes,
-      hardIntervalMinutes: hardIntervalMinutes,
+      description: description,
+      easyFrequencyRatio: easyFrequencyRatio,
+      normalFrequencyRatio: normalFrequencyRatio,
+      hardFrequencyRatio: hardFrequencyRatio,
       statistics: statistics,
     );
   }

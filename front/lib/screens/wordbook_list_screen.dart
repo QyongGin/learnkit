@@ -107,12 +107,24 @@ class _WordBookListScreenState extends State<WordBookListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('단어장'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          '단어장',
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+          ),
+        ),
         centerTitle: true,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.black.withValues(alpha: 0.05),
         actions: [
           // 추가 버튼
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add, color: Colors.black87),
             onPressed: _showAddWordBookDialog,
             tooltip: '단어장 추가',
           ),
@@ -183,21 +195,18 @@ class _WordBookListScreenState extends State<WordBookListScreen> {
 
     return RefreshIndicator(
       onRefresh: _loadWordBooks,
-      child: GridView.builder(
+      child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.0,
-        ),
         itemCount: _wordBooks.length,
         itemBuilder: (context, index) {
           final wordBook = _wordBooks[index];
-          return WordBookCard(
-            wordBook: wordBook,
-            onTap: () => _onWordBookTap(wordBook),
-            onMenuTap: () => _showWordBookMenu(wordBook),
+          return Padding(
+            padding: EdgeInsets.only(bottom: index < _wordBooks.length - 1 ? 12 : 0),
+            child: WordBookCard(
+              wordBook: wordBook,
+              onTap: () => _onWordBookTap(wordBook),
+              onMenuTap: () => _showWordBookMenu(wordBook),
+            ),
           );
         },
       ),

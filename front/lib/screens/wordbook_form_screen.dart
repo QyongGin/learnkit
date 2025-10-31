@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import '../models/wordbook.dart';
 import '../services/api_service.dart';
 
-/// 단어장 생성/수정 화면
+/// 단어장 생성/수정 화면 (빈도 비율 방식)
 class WordBookFormScreen extends StatefulWidget {
   final WordBook? wordBook; // null이면 생성, 있으면 수정
 
@@ -18,10 +18,10 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  // 난이도별 복습 간격 (분) - 기본값: 어려움 3분, 보통 10분, 쉬움 20분
-  int _easyInterval = 20;
-  int _normalInterval = 10;
-  int _hardInterval = 3;
+  // 난이도별 빈도 비율 - 기본값: 쉬움 x1, 보통 x3, 어려움 x6
+  int _easyRatio = 1;
+  int _normalRatio = 3;
+  int _hardRatio = 6;
 
   final int _userId = 1; // TODO: 실제 로그인한 사용자 ID로 변경
   bool _isLoading = false;
@@ -32,9 +32,10 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
     // 수정 모드인 경우 기존 데이터로 초기화
     if (widget.wordBook != null) {
       _titleController.text = widget.wordBook!.title;
-      _easyInterval = widget.wordBook!.easyIntervalMinutes;
-      _normalInterval = widget.wordBook!.normalIntervalMinutes;
-      _hardInterval = widget.wordBook!.hardIntervalMinutes;
+      _descriptionController.text = widget.wordBook!.description ?? '';
+      _easyRatio = widget.wordBook!.easyFrequencyRatio;
+      _normalRatio = widget.wordBook!.normalFrequencyRatio;
+      _hardRatio = widget.wordBook!.hardFrequencyRatio;
     }
   }
 
@@ -45,9 +46,54 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
     super.dispose();
   }
 
+  /// 빈도 비율 유효성 검증
+  bool _validateRatios() {
+    // 최소값 검증
+    if (_easyRatio < 1) {
+      _showErrorSnackBar('쉬움 빈도는 최소 1배 이상이어야 합니다');
+      return false;
+    }
+    if (_normalRatio < 2) {
+      _showErrorSnackBar('보통 빈도는 최소 2배 이상이어야 합니다');
+      return false;
+    }
+    if (_hardRatio < 3) {
+      _showErrorSnackBar('어려움 빈도는 최소 3배 이상이어야 합니다');
+      return false;
+    }
+
+    // 순서 검증: 쉬움 < 보통 < 어려움
+    if (_easyRatio >= _normalRatio) {
+      _showErrorSnackBar('보통 빈도는 쉬움보다 커야 합니다');
+      return false;
+    }
+    if (_normalRatio >= _hardRatio) {
+      _showErrorSnackBar('어려움 빈도는 보통보다 커야 합니다');
+      return false;
+    }
+
+    return true;
+  }
+
+  /// 에러 스낵바 표시
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   /// 저장 버튼 클릭
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // 빈도 비율 유효성 검증
+    if (!_validateRatios()) {
       return;
     }
 
@@ -59,9 +105,10 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
         await ApiService.createWordBook(
           userId: _userId,
           title: _titleController.text,
-          easyIntervalMinutes: _easyInterval,
-          normalIntervalMinutes: _normalInterval,
-          hardIntervalMinutes: _hardInterval,
+          description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+          easyFrequencyRatio: _easyRatio,
+          normalFrequencyRatio: _normalRatio,
+          hardFrequencyRatio: _hardRatio,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -73,9 +120,10 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
         await ApiService.updateWordBook(
           wordBookId: widget.wordBook!.id,
           title: _titleController.text,
-          easyIntervalMinutes: _easyInterval,
-          normalIntervalMinutes: _normalInterval,
-          hardIntervalMinutes: _hardInterval,
+          description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+          easyFrequencyRatio: _easyRatio,
+          normalFrequencyRatio: _normalRatio,
+          hardFrequencyRatio: _hardRatio,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -154,31 +202,35 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
     }
   }
 
-  /// 간격 수정 다이얼로그 표시
-  Future<void> _showIntervalEditDialog(
+  /// 빈도 비율 수정 다이얼로그 표시
+  Future<void> _showRatioEditDialog(
     String difficultyName,
     int currentValue,
-    Function(int) onChanged,
-  ) async {
+    Function(int) onChanged, {
+    required int minValue,
+  }) async {
     final controller = TextEditingController(text: currentValue.toString());
 
     final result = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('$difficultyName 복습 간격'),
+        title: Text('$difficultyName 빈도 비율'),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(
-            hintText: '분 단위로 입력하세요',
-            suffixText: '분',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: '빈도 비율을 입력하세요',
+            helperText: '최소 $minValue배 이상',
+            suffixText: '배',
+            border: const OutlineInputBorder(),
           ),
           autofocus: true,
           onSubmitted: (_) {
             final value = int.tryParse(controller.text);
-            Navigator.of(context).pop(value);
+            if (value != null && value >= minValue) {
+              Navigator.of(context).pop(value);
+            }
           },
         ),
         actions: [
@@ -189,7 +241,17 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
           FilledButton(
             onPressed: () {
               final value = int.tryParse(controller.text);
-              Navigator.of(context).pop(value);
+              if (value != null && value >= minValue) {
+                Navigator.of(context).pop(value);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('최소 $minValue배 이상이어야 합니다'),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
             },
             child: const Text('확인'),
           ),
@@ -197,7 +259,7 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
       ),
     );
 
-    if (result != null && result > 0) {
+    if (result != null && result >= minValue) {
       setState(() => onChanged(result));
     }
   }
@@ -226,15 +288,20 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+      body: GestureDetector(
+        onTap: () {
+          // 빈 화면 탭 시 키보드 내리기
+          FocusScope.of(context).unfocus();
+        },
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     // 이름 입력
                     TextFormField(
                       controller: _titleController,
@@ -266,11 +333,11 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
 
                     const SizedBox(height: 32),
 
-                    // 복습 간격 설정 섹션
+                    // 복습 빈도 설정 섹션
                     Row(
                       children: [
                         Text(
-                          '복습 간격 설정',
+                          '복습 빈도 설정',
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -281,12 +348,13 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
                             showDialog(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: const Text('복습 간격이란?'),
+                                title: const Text('복습 빈도란?'),
                                 content: const Text(
-                                  '단어 학습 후 난이도에 따라 다음 복습 시간이 자동으로 설정됩니다.\n\n'
-                                  '• 쉬움: 오래 기억할 수 있는 단어\n'
-                                  '• 보통: 적당히 기억할 수 있는 단어\n'
-                                  '• 어려움: 자주 복습이 필요한 단어',
+                                  '학습 세션에서 난이도별로 얼마나 자주 등장할지를 설정합니다.\n\n'
+                                  '• 쉬움 (x1): 가장 적게 등장\n'
+                                  '• 보통 (x3): 쉬움의 3배 등장\n'
+                                  '• 어려움 (x6): 쉬움의 6배 등장\n\n'
+                                  '예: 쉬움을 1번 볼 때, 어려움은 6번 등장합니다.',
                                 ),
                                 actions: [
                                   TextButton(
@@ -306,59 +374,91 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
                       ],
                     ),
 
+                    const SizedBox(height: 8),
+
+                    // 최소 배율 안내
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '최소 배율: 쉬움 1배 이상, 보통 2배 이상, 어려움 3배 이상\n쉬움 < 보통 < 어려움 순서를 지켜주세요',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue.shade900,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     const SizedBox(height: 16),
 
-                    // 난이도별 간격 버튼
-                    _buildIntervalButton(
-                      '쉬움',
-                      _easyInterval,
+                    // 난이도별 빈도 버튼
+                    _buildRatioButton(
+                      '쉬움 (최소 1배)',
+                      _easyRatio,
                       Colors.green.shade100,
                       Colors.green.shade700,
-                      () => _showIntervalEditDialog(
+                      () => _showRatioEditDialog(
                         '쉬움',
-                        _easyInterval,
-                        (value) => _easyInterval = value,
+                        _easyRatio,
+                        (value) => _easyRatio = value,
+                        minValue: 1,
                       ),
                     ),
 
                     const SizedBox(height: 12),
 
-                    _buildIntervalButton(
-                      '보통',
-                      _normalInterval,
+                    _buildRatioButton(
+                      '보통 (최소 2배)',
+                      _normalRatio,
                       Colors.blue.shade100,
                       Colors.blue.shade700,
-                      () => _showIntervalEditDialog(
+                      () => _showRatioEditDialog(
                         '보통',
-                        _normalInterval,
-                        (value) => _normalInterval = value,
+                        _normalRatio,
+                        (value) => _normalRatio = value,
+                        minValue: 2,
                       ),
                     ),
 
                     const SizedBox(height: 12),
 
-                    _buildIntervalButton(
-                      '어려움',
-                      _hardInterval,
+                    _buildRatioButton(
+                      '어려움 (최소 3배)',
+                      _hardRatio,
                       Colors.red.shade100,
                       Colors.red.shade700,
-                      () => _showIntervalEditDialog(
+                      () => _showRatioEditDialog(
                         '어려움',
-                        _hardInterval,
-                        (value) => _hardInterval = value,
+                        _hardRatio,
+                        (value) => _hardRatio = value,
+                        minValue: 3,
                       ),
                     ),
                   ],
                 ),
               ),
             ),
+      ),
     );
   }
 
-  /// 간격 설정 버튼 위젯
-  Widget _buildIntervalButton(
+  /// 빈도 비율 설정 버튼 위젯
+  Widget _buildRatioButton(
     String label,
-    int minutes,
+    int ratio,
     Color bgColor,
     Color textColor,
     VoidCallback onTap,
@@ -371,7 +471,7 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: textColor.withOpacity(0.3)),
+          border: Border.all(color: textColor.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -387,7 +487,7 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
             Row(
               children: [
                 Text(
-                  '$minutes분',
+                  'x$ratio배',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

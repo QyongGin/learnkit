@@ -5,6 +5,7 @@ class Card {
   final String backText; // 뒷면 (답/뜻)
   final DateTime nextReviewAt; // 다음 복습 시간
   final CardDifficulty? difficulty; // 난이도
+  final int viewCount; // 복습 횟수
 
   Card({
     required this.id,
@@ -12,6 +13,7 @@ class Card {
     required this.backText,
     required this.nextReviewAt,
     this.difficulty,
+    this.viewCount = 0,
   });
 
   factory Card.fromJson(Map<String, dynamic> json) {
@@ -28,6 +30,7 @@ class Card {
               orElse: () => CardDifficulty.NORMAL,
             )
           : null,
+      viewCount: json['viewCount'] ?? 0,
     );
   }
 
@@ -49,7 +52,6 @@ enum CardDifficulty {
 /// 카드 상세 정보 (통계/관리용)
 class CardDetail extends Card {
   final DateTime? lastReviewedAt; // 마지막 복습 시간
-  final int viewCount; // 조회 횟수
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -59,8 +61,8 @@ class CardDetail extends Card {
     required super.backText,
     required super.nextReviewAt,
     super.difficulty,
+    super.viewCount,
     this.lastReviewedAt,
-    required this.viewCount,
     required this.createdAt,
     required this.updatedAt,
   });

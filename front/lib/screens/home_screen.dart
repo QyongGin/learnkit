@@ -7,6 +7,7 @@ import '../widgets/section_card.dart';
 import '../widgets/calendar_widget.dart';
 import 'schedule_form_screen.dart';
 import 'wordbook_list_screen.dart';
+import 'profile_screen.dart';
 import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -30,9 +31,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int _userId = 1; // 기본값
 
   int _totalCards = 0; // 단어장 총 카드 수
-  int _learnedCards = 0; // 학습한 카드 수
-  int _reviewCards = 0; // 복습한 카드 수
-  int _difficultCards = 0; // 어려운 카드 수
+  int _learnedCards = 0; // 쉬움 난이도 카드 수 (EASY)
+  int _reviewCards = 0; // 보통 난이도 카드 수 (NORMAL)
+  int _difficultCards = 0; // 어려움 난이도 카드 수 (HARD)
 
   @override
   void initState() {
@@ -345,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           // 단어장 섹션 (API 연동)
                           SectionCard(
                             title: '단어장',
-                            subtitle: '학습 $_learnedCards · 복습 $_reviewCards · 어려움 $_difficultCards',
+                            subtitle: '쉬움 $_learnedCards · 보통 $_reviewCards · 어려움 $_difficultCards',
                             onTap: () {
                               // 단어장 목록 화면으로 이동
                               Navigator.push(
@@ -428,8 +429,25 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
           onTap: (index) {
-            // 네비게이션 처리
-            // TODO: 다른 화면으로 이동
+            if (index == 0) {
+              // 프로필 화면으로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(),
+                ),
+              ).then((_) {
+                // 프로필에서 돌아올 때 통계 새로고침
+                _loadWordBookStats();
+              });
+            } else if (index == 1) {
+              // 이미 홈 화면이므로 아무것도 안함
+            } else if (index == 2) {
+              // 설정 화면 (나중에 구현)
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('설정 화면은 준비 중입니다')),
+              );
+            }
           },
         ),
       ),
