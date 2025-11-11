@@ -23,6 +23,14 @@ public interface CardRepository extends JpaRepository<Card, Long> {
     List<Card> findByWordBookId(Long wordBookId);
 
     /**
+     * 특정 단어장의 총 카드 개수 조회
+     *
+     * @param wordBookId 단어장 ID
+     * @return 카드 개수
+     */
+    long countByWordBookId(Long wordBookId);
+
+    /**
      * 특정 사용자의 카드를 난이도별로 집계 (복습한 카드만)
      *
      * @param userId 사용자 ID
@@ -41,4 +49,14 @@ public interface CardRepository extends JpaRepository<Card, Long> {
      */
     // count - 집계 함수 사용 By - WHERE 절 시작 WordBookId - 단어장 ID 직접 접근 And - 조건 연결 Difficulty - 직접 필드 접근
     long countByWordBookIdAndDifficulty(Long wordBookId, Card.Difficulty difficulty);
+
+    /**
+     * 특정 단어장에서 reviewPriority가 가장 작은 카드를 조회함 (학습 세션용).
+     * 우선순위를 오름차순 정렬하여 첫 번째 카드를 반환.
+     *
+     * @param wordBookId 단어장 ID
+     * @return reviewPriority가 가장 작은 카드 (Optional)
+     */
+    // findFirst - 첫 번째 결과만 가져옴 By - WHERE 절 시작 WordBookId - 단어장 ID 조건 OrderBy - 정렬 ReviewPriority - 정렬 기준 필드 Asc - 오름차순
+    java.util.Optional<Card> findFirstByWordBookIdOrderByReviewPriorityAsc(Long wordBookId);
 }

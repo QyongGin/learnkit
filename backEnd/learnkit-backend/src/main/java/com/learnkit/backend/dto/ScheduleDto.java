@@ -17,7 +17,7 @@ public class ScheduleDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
+    @NoArgsConstructor // Jackson이 JSON을 객체로 변환할 때 필요한 기본 생성자를 자동으로 생성
     public static class CreateRequest {
         private String title;
         private String description;
