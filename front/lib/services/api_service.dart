@@ -5,17 +5,19 @@ import '../models/schedule.dart';
 import '../models/wordbook.dart';
 import '../models/card.dart';
 import '../models/user.dart';
+import '../models/goal.dart';
+import '../models/study_session.dart';
 
 class ApiService {
   // 백엔드 서버 주소
   // 자동으로 시뮬레이터/실제 기기 구분
   static String get baseUrl {
     // 시뮬레이터에서 테스트할 때는 localhost 사용
-    return 'http://localhost:8080/api';
+    // return 'http://localhost:8080/api';
 
     // 실제 iOS/Android 기기에서는 Mac의 로컬 IP 사용
     // ⚠️ WiFi 재연결 시 IP가 변경될 수 있음 - ifconfig 명령으로 확인 필요
-    // return 'http://192.168.35.177:8080/api';
+    return 'http://10.200.52.136:8080/api';
   }
 
   /// 홈 화면 데이터를 가져옵니다
@@ -563,6 +565,240 @@ class ApiService {
       return User.fromJson(data);
     } else {
       throw Exception('프로필 수정에 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  // ========================================
+  // Goal API
+  // ========================================
+
+  /// 목표 생성
+  static Future<Goal> createGoal({
+    required int userId,
+    required String title,
+    DateTime? startDate,
+    DateTime? endDate,
+    required int totalTargetAmount,
+    required String targetUnit,
+  }) async {
+    final Map<String, dynamic> body = {
+      'title': title,
+      'totalTargetAmount': totalTargetAmount,
+      'targetUnit': targetUnit,
+    };
+    if (startDate != null) body['startDate'] = startDate.toIso8601String().split('T')[0];
+    if (endDate != null) body['endDate'] = endDate.toIso8601String().split('T')[0];
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/$userId/goals'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
+
+    if (response.statusCode == 201) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return Goal.fromJson(data);
+    } else {
+      throw Exception('목표 생성에 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  /// 목표 수정
+  static Future<Goal> updateGoal({
+    required int goalId,
+    String? title,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? totalTargetAmount,
+    String? targetUnit,
+  }) async {
+    final Map<String, dynamic> body = {};
+    if (title != null) body['title'] = title;
+    if (startDate != null) body['startDate'] = startDate.toIso8601String().split('T')[0];
+    if (endDate != null) body['endDate'] = endDate.toIso8601String().split('T')[0];
+    if (totalTargetAmount != null) body['totalTargetAmount'] = totalTargetAmount;
+    if (targetUnit != null) body['targetUnit'] = targetUnit;
+
+    final response = await http.patch(
+      Uri.parse('$baseUrl/goals/$goalId'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return Goal.fromJson(data);
+    } else {
+      throw Exception('목표 수정에 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  /// 목표 삭제
+  static Future<void> deleteGoal(int goalId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/goals/$goalId'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode != 204) {
+      throw Exception('목표 삭제에 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  /// 사용자의 진행 중인 목표 조회
+  static Future<List<Goal>> fetchActiveGoals(int userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId/goals/active'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+      return data.map((json) => Goal.fromJson(json)).toList();
+    } else {
+      throw Exception('목표 목록을 불러오는데 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  /// 사용자의 모든 목표 조회
+  static Future<List<Goal>> fetchGoals(int userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId/goals'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+      return data.map((json) => Goal.fromJson(json)).toList();
+    } else {
+      throw Exception('목표 목록을 불러오는데 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  /// 목표 진행도 추가
+  static Future<Goal> addGoalProgress({
+    required int goalId,
+    required int amount,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/goals/$goalId/progress'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'amount': amount}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return Goal.fromJson(data);
+    } else {
+      throw Exception('목표 진행도 업데이트에 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  // ========================================
+  // StudySession API (포모도로 타이머)
+  // ========================================
+
+  /// 포모도로 학습 세션 시작
+  static Future<StudySession> startPomodoroSession({
+    required int userId,
+    int? goalId,
+  }) async {
+    final Map<String, dynamic> body = {};
+    if (goalId != null) body['goalId'] = goalId;
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/$userId/study-sessions'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
+
+    if (response.statusCode == 201) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return StudySession.fromJson(data);
+    } else {
+      throw Exception('학습 세션 시작에 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  /// 포모도로 학습 세션 종료
+  static Future<StudySession> endPomodoroSession({
+    required int sessionId,
+    required int achievedAmount,
+    required int durationMinutes,
+    required int pomoCount,
+    String? note,
+  }) async {
+    final Map<String, dynamic> body = {
+      'achievedAmount': achievedAmount,
+      'durationMinutes': durationMinutes,
+      'pomoCount': pomoCount,
+    };
+    if (note != null && note.isNotEmpty) body['note'] = note;
+
+    final response = await http.patch(
+      Uri.parse('$baseUrl/study-sessions/$sessionId/end'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return StudySession.fromJson(data);
+    } else {
+      throw Exception('학습 세션 종료에 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  /// 진행 중인 포모도로 세션 조회
+  static Future<StudySession?> fetchActivePomodoroSession(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/$userId/study-sessions/active'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        return StudySession.fromJson(data);
+      } else if (response.statusCode == 404) {
+        // 진행 중인 세션 없음
+        return null;
+      } else {
+        throw Exception('진행 중인 세션 조회 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      // 로깅은 추후 로깅 프레임워크로 대체 예정
+      return null;
+    }
+  }
+
+  /// 특정 목표의 학습 세션 목록 조회
+  static Future<List<StudySession>> fetchSessionsByGoal(int goalId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/study-sessions?goalId=$goalId'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+      return data.map((json) => StudySession.fromJson(json)).toList();
+    } else {
+      throw Exception('세션 목록을 불러오는데 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  /// 사용자의 모든 학습 세션 조회
+  static Future<List<StudySession>> fetchUserSessions(int userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId/study-sessions'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+      return data.map((json) => StudySession.fromJson(json)).toList();
+    } else {
+      throw Exception('세션 목록을 불러오는데 실패했습니다: ${response.statusCode}');
     }
   }
 }

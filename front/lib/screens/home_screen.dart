@@ -8,6 +8,10 @@ import '../widgets/calendar_widget.dart';
 import 'schedule_form_screen.dart';
 import 'wordbook_list_screen.dart';
 import 'profile_screen.dart';
+import 'pomodoro_screen.dart';
+import 'goal_list_screen.dart';
+import 'study_history_screen.dart';
+import 'weekly_summary_screen.dart';
 import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -334,12 +338,43 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(height: 16),
                           ],
 
+                          // 오늘의 할 일 섹션
+                          SectionCard(
+                            title: '오늘의 할 일',
+                            subtitle: '',
+                            customContent: CircularProgressWidget(
+                              completed: _getTodayGoalProgress().completed,
+                              total: _getTodayGoalProgress().total,
+                            ),
+                            // 화살표 없음 (상세 페이지 없음)
+                          ),
+
+                          // 목표 섹션
+                          SectionCard(
+                            title: '목표',
+                            subtitle: '나의 학습 목표를 관리하세요',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const GoalListScreen(),
+                                ),
+                              );
+                            },
+                          ),
+
                           // 타이머 섹션
                           SectionCard(
                             title: '타이머',
                             subtitle: _homeData?.timerInfo.displayText ?? '',
                             onTap: () {
-                              // 타이머 상세 화면으로 이동
+                              // 포모도로 타이머 화면으로 이동
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const PomodoroScreen(),
+                                ),
+                              );
                             },
                           ),
 
@@ -358,26 +393,18 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                           ),
 
-                          // 오늘의 목표 섹션
+                          // 학습 기록 섹션
                           SectionCard(
-                            title: '오늘의 목표',
-                            subtitle: '',
-                            customContent: CircularProgressWidget(
-                              completed: _getTodayGoalProgress().completed,
-                              total: _getTodayGoalProgress().total,
-                            ),
-                            // 화살표 없음 (상세 페이지 없음)
-                          ),
-
-                          // 진행 상황 섹션 (나중에 별도 API 연동 예정)
-                          SectionCard(
-                            title: '진행 상황',
-                            subtitle: '',
-                            customContent: LinearProgressWidget(
-                              percentage: _homeData?.progressInfo.percentage ?? 0,
-                            ),
+                            title: '학습 기록',
+                            subtitle: '나의 학습 기록을 확인하세요',
                             onTap: () {
-                              // 진행 상황 상세 화면으로 이동
+                              // 학습 기록 화면으로 이동
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const StudyHistoryScreen(),
+                                ),
+                              );
                             },
                           ),
 
@@ -387,6 +414,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             subtitle: _homeData?.weeklyStats.displayText ?? '',
                             onTap: () {
                               // 주간 정산 상세 화면으로 이동
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const WeeklySummaryScreen(),
+                                ),
+                              );
                             },
                           ),
 
