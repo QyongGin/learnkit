@@ -1,20 +1,35 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+import 'package:vibration/vibration.dart';
 import '../models/goal.dart';
 import '../models/study_session.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 
+/// ⏱️ 포모도로 시간 설정 (테스트용으로 쉽게 변경 가능)
+/// 실제 배포 시: FOCUS = 25, SHORT_BREAK = 5, LONG_BREAK = 30
+const int FOCUS_MINUTES = 1;       // 집중 시간 (분) - 테스트: 1분으로 변경 가능
+const int SHORT_BREAK_MINUTES = 1;  // 짧은 휴식 (분) - 테스트: 1분으로 변경 가능
+const int LONG_BREAK_MINUTES = 2;  // 장휴식 (분) - 테스트: 2분으로 변경 가능
+
 /// 포모도로 타이머 상태
 enum PomodoroState {
-  focus,      // 25분 집중
-  shortBreak, // 5분 휴식
-  longBreak,  // 30분 장휴식
+  focus,      // 집중
+  shortBreak, // 짧은 휴식
+  longBreak,  // 장휴식
 }
 
 /// 포모도로 타이머 화면
 class PomodoroScreen extends StatefulWidget {
-  const PomodoroScreen({super.key});
+  final int? resumeSessionId; // 이어하기할 세션 ID
+  final int? resumePomoCount; // 이어하기할 포모도로 카운트
+
+  const PomodoroScreen({
+    super.key,
+    this.resumeSessionId,
+    this.resumePomoCount,
+  });
 
   @override
   State<PomodoroScreen> createState() => _PomodoroScreenState();
@@ -33,24 +48,146 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
   // 타이머
   Timer? _timer;
-  int _remainingSeconds = 25 * 60; // 기본 25분
+  int _remainingSeconds = FOCUS_MINUTES * 60; // 기본 집중 시간
   bool _isRunning = false;
 
   // 세션
   StudySession? _currentSession;
-  DateTime? _sessionStartTime;
+
+  // 센서 관련
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
+  bool _isPhoneFaceDown = false; // 폰이 뒤집혀있는지 (화면이 바닥을 향함)
+  bool _waitingForFlip = false; // "출발!" 버튼 후 폰 뒤집기 대기 중
+  bool _isShowingPopup = false; // 팝업 표시 중 여부 (팝업이 떠있는 동안 센서 비활성화)
 
   @override
   void initState() {
     super.initState();
     _initAuth();
-    _loadGoals();
+    _initAccelerometer();
+    _initializeSession(); // 목표 로드 후 세션 재개
+  }
+
+  /// 목표 로드 후 세션 재개 (순서 보장)
+  Future<void> _initializeSession() async {
+    await _loadGoals(); // 1단계: 먼저 목표들을 로드
+    await _resumeSessionIfNeeded(); // 2단계: 목표 로드 완료 후 세션 재개 및 목표 자동 선택
+  }
+
+  /// 세션 이어하기 (HomeScreen에서 전달받은 경우)
+  Future<void> _resumeSessionIfNeeded() async {
+    if (widget.resumeSessionId != null && widget.resumePomoCount != null) {
+      try {
+        // API에서 진행 중인 세션 가져오기
+        final session = await ApiService.fetchActivePomodoroSession(_userId);
+
+        if (session != null) {
+          setState(() {
+            _currentSession = session;
+            _totalPomodoros = session.pomoCount;
+            _completedSets = session.pomoCount;
+
+            // 이어하기 시 자동으로 "폰 뒤집기 대기" 상태로 설정
+            _waitingForFlip = true;
+
+            // 목표가 있다면 자동으로 선택
+            if (session.goalId != null && _goals.isNotEmpty) {
+              try {
+                _selectedGoal = _goals.firstWhere(
+                  (goal) => goal.id == session.goalId,
+                );
+              } catch (e) {
+                // 목표를 찾지 못한 경우 선택하지 않음
+                print('목표를 찾을 수 없습니다: ${session.goalId}');
+              }
+            }
+          });
+        }
+      } catch (e) {
+        // API 실패 시 기본 데이터로 설정
+        setState(() {
+          _currentSession = StudySession(
+            id: widget.resumeSessionId!,
+            goalId: null,
+            goalTitle: null,
+            startedAt: DateTime.now(),
+            endedAt: null,
+            achievedAmount: 0,
+            durationMinutes: 0,
+            pomoCount: widget.resumePomoCount!,
+            note: null,
+            inProgress: true,
+          );
+          _totalPomodoros = widget.resumePomoCount!;
+          _completedSets = widget.resumePomoCount!;
+
+          // 이어하기 시 자동으로 "폰 뒤집기 대기" 상태로 설정
+          _waitingForFlip = true;
+        });
+      }
+    }
+  }
+
+  /// 포모도로 카운트를 서버에 실시간 업데이트
+  /// 앱 강제 종료 시에도 진행 상황이 보존되도록 매 포모도로 완료마다 호출
+  Future<void> _updatePomoCountToServer() async {
+    if (_currentSession != null) {
+      try {
+        await ApiService.updatePomoCount(
+          sessionId: _currentSession!.id,
+          pomoCount: _totalPomodoros,
+        );
+        print('포모도로 카운트 업데이트 성공: $_totalPomodoros');
+      } catch (e) {
+        print('포모도로 카운트 업데이트 실패: $e');
+        // 에러가 발생해도 사용자 경험을 방해하지 않도록 조용히 실패
+      }
+    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _accelerometerSubscription?.cancel();
     super.dispose();
+  }
+
+  /// 가속도계 초기화
+  void _initAccelerometer() {
+    _accelerometerSubscription = accelerometerEventStream().listen((AccelerometerEvent event) {
+      // 경고 팝업이 표시 중이면 센서 무시 (사용자가 선택할 때까지 대기)
+      // 단, _waitingForFlip 상태에서 뜨는 "폰을 뒤집어주세요" 팝업은 센서 작동 허용
+      if (_isShowingPopup && !_waitingForFlip) {
+        return;
+      }
+
+      // 타이머가 실행 중이거나 대기 중일 때만 센서 감지
+      if (!_isRunning && !_waitingForFlip) {
+        return;
+      }
+
+      // Z축이 음수이고 절댓값이 크면 화면이 바닥을 향함 (뒤집힌 상태)
+      bool isFaceDown = event.z < -9.5;
+
+      // 상태 변화 감지 시 즉시 반응 (디바운스 제거)
+      if (isFaceDown != _isPhoneFaceDown) {
+        setState(() {
+          _isPhoneFaceDown = isFaceDown;
+        });
+        _handleFlipChange(isFaceDown);
+      }
+    });
+  }
+
+  /// 폰 뒤집기 상태 변화 처리
+  void _handleFlipChange(bool isFaceDown) {
+    if (isFaceDown) {
+      // 폰을 뒤집음 (화면이 바닥을 향함)
+      _onPhoneFlippedDown();
+    } else {
+      // 폰을 다시 뒤집음 (화면이 위를 향함)
+      _onPhoneFlippedUp();
+    }
   }
 
   Future<void> _initAuth() async {
@@ -94,7 +231,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         );
         setState(() {
           _currentSession = session;
-          _sessionStartTime = DateTime.now();
         });
       } catch (e) {
         if (mounted) {
@@ -130,12 +266,188 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     _timer?.cancel();
   }
 
+  /// 폰을 뒤집었을 때 (화면이 바닥을 향함)
+  void _onPhoneFlippedDown() {
+    if (_waitingForFlip) {
+      // "출발!" 버튼 후 대기 중이었다면 → 팝업 닫고 타이머 시작
+
+      // 기존 팝업 닫기
+      if (_isShowingPopup && mounted) {
+        try {
+          Navigator.of(context).pop();
+        } catch (e) {
+          print('팝업 닫기 실패 (onFlipDown): $e');
+        } finally {
+          _isShowingPopup = false;
+        }
+      }
+
+      setState(() {
+        _waitingForFlip = false;
+      });
+      _vibrate();
+      _showPomodoroPopup('${_totalPomodoros + 1}포모 시작!');
+      _startTimer();
+    } else if (_isRunning && _pomodoroState == PomodoroState.focus) {
+      // 집중 타이머 동작 중 → 아무것도 안함 (집중 유지)
+    } else if (!_isRunning && _pomodoroState == PomodoroState.focus) {
+      // 집중 모드인데 정지 상태 → 타이머 재개
+      _vibrate();
+      _showPomodoroPopup('학습 재개!');
+      _startTimer();
+    }
+    // 휴식 중에는 뒤집어도 아무 일 없음
+  }
+
+  /// 폰을 다시 뒤집었을 때 (화면이 위를 향함)
+  void _onPhoneFlippedUp() {
+    if (_isRunning && _pomodoroState == PomodoroState.focus) {
+      // 집중 타이머 동작 중 폰을 뒤집음 → 경고 후 초기화
+      _pauseTimer();
+      _vibrate();
+      _showWarningDialog();
+    }
+    // 휴식 중에는 뒤집어도 아무 일 없음
+  }
+
+  /// 진동
+  void _vibrate() async {
+    if (await Vibration.hasVibrator() ?? false) {
+      Vibration.vibrate(duration: 500);
+    }
+  }
+
+  /// 중앙 팝업 (몇 포모, 휴식 등)
+  void _showPomodoroPopup(String message) {
+    // 이미 팝업이 표시 중이면 무시
+    if (_isShowingPopup) return;
+
+    _isShowingPopup = true;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 40),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.local_fire_department,
+                  color: Color(0xFFFF6B6B),
+                  size: 48,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF191F28),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // 2초 후 자동으로 닫기
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && _isShowingPopup) {
+        try {
+          Navigator.of(context).pop();
+        } catch (e) {
+          print('팝업 닫기 실패: $e');
+        } finally {
+          _isShowingPopup = false; // 팝업 닫힐 때 플래그 리셋
+        }
+      }
+    });
+  }
+
+  /// 경고 다이얼로그 (집중 중 폰 뒤집음)
+  void _showWarningDialog() {
+    // 팝업이 표시되는 동안 센서 완전히 중지
+    _isShowingPopup = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // 사용자가 반드시 선택하도록 강제
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber, color: Colors.red, size: 28),
+            SizedBox(width: 8),
+            Text('집중을 방해했습니다!'),
+          ],
+        ),
+        content: const Text('타이머가 초기화됩니다.\n다시 집중하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _isShowingPopup = false; // 센서 재활성화
+              // 타이머 초기화
+              _resetCurrentTimer();
+            },
+            child: const Text('다시 집중하기'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _isShowingPopup = false; // 센서 재활성화
+              // 세션 종료
+              _endSession();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('종료하기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 현재 타이머 초기화
+  void _resetCurrentTimer() {
+    setState(() {
+      if (_pomodoroState == PomodoroState.focus) {
+        _remainingSeconds = FOCUS_MINUTES * 60;
+      } else if (_pomodoroState == PomodoroState.shortBreak) {
+        _remainingSeconds = SHORT_BREAK_MINUTES * 60;
+      } else {
+        _remainingSeconds = LONG_BREAK_MINUTES * 60;
+      }
+      _isRunning = false;
+    });
+    _timer?.cancel();
+  }
+
   /// 타이머 완료 시 처리
   void _onTimerComplete() {
     _timer?.cancel();
     setState(() {
       _isRunning = false;
     });
+
+    _vibrate(); // 진동
 
     if (_pomodoroState == PomodoroState.focus) {
       // 집중 세션 완료
@@ -144,15 +456,26 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         _totalPomodoros++;
       });
 
-      // 4세트 완료 시 장휴식, 아니면 짧은 휴식
+      // 포모도로 카운트를 서버에 실시간 업데이트 (앱 강제 종료 대비)
+      _updatePomoCountToServer();
+
+      // 4세트 완료 시 장휴식, 아니면 짧은 휴식 - 자동으로 시작
       if (_completedSets % 4 == 0) {
-        _showBreakDialog('장휴식 시간입니다!', '30분 동안 푹 쉬세요 😊', PomodoroState.longBreak);
+        _showPomodoroPopup('장휴식 시작!\n30분 동안 푹 쉬세요');
+        _startBreak(PomodoroState.longBreak);  // 자동으로 장휴식 시작
       } else {
-        _showBreakDialog('잠깐 쉬어가세요!', '5분 휴식', PomodoroState.shortBreak);
+        _showPomodoroPopup('휴식 시작!\n5분 쉬어가세요');
+        _startBreak(PomodoroState.shortBreak);  // 자동으로 짧은 휴식 시작
       }
     } else {
-      // 휴식 완료
-      _showNextFocusDialog();
+      // 휴식 완료 - 폰 뒤집기 대기 상태로 전환
+      _vibrate();
+      _showPomodoroPopup('${_totalPomodoros + 1}포모 준비!\n폰을 뒤집으세요');
+      setState(() {
+        _pomodoroState = PomodoroState.focus;
+        _remainingSeconds = FOCUS_MINUTES * 60;
+        _waitingForFlip = true;  // 폰 뒤집기 대기
+      });
     }
   }
 
@@ -223,7 +546,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               Navigator.pop(context);
               setState(() {
                 _pomodoroState = PomodoroState.focus;
-                _remainingSeconds = 25 * 60;
+                _remainingSeconds = FOCUS_MINUTES * 60;
               });
               _startTimer();
             },
@@ -241,7 +564,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   void _startBreak(PomodoroState breakState) {
     setState(() {
       _pomodoroState = breakState;
-      _remainingSeconds = breakState == PomodoroState.longBreak ? 30 * 60 : 5 * 60;
+      _remainingSeconds = breakState == PomodoroState.longBreak ? LONG_BREAK_MINUTES * 60 : SHORT_BREAK_MINUTES * 60;
     });
     _startTimer();
   }
@@ -283,7 +606,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                '학습 시간: ${_calculateDuration()}분',
+                '학습 시간: ${_totalPomodoros * 25}분',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade700,
@@ -366,8 +689,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     if (_currentSession == null) return;
 
     try {
-      final duration = _calculateDuration();
+      // 포모도로 세트 수로 시간 계산 (1세트 = 25분)
+      final duration = _totalPomodoros * 25;
 
+      // 백엔드에서 Goal progress를 자동으로 업데이트하므로 프론트에서 별도 호출 불필요
       await ApiService.endPomodoroSession(
         sessionId: _currentSession!.id,
         achievedAmount: achievement,
@@ -375,14 +700,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         pomoCount: _totalPomodoros,
         note: note.isEmpty ? null : note,
       );
-
-      // 목표에 달성량 추가
-      if (_selectedGoal != null && achievement > 0) {
-        await ApiService.addGoalProgress(
-          goalId: _selectedGoal!.id,
-          amount: achievement,
-        );
-      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -396,13 +713,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     }
   }
 
-  /// 학습 시간 계산 (분)
-  int _calculateDuration() {
-    if (_sessionStartTime == null) return 0;
-    final duration = DateTime.now().difference(_sessionStartTime!);
-    return duration.inMinutes;
-  }
-
   /// 시간 포맷팅 (MM:SS)
   String _formatTime(int seconds) {
     final minutes = seconds ~/ 60;
@@ -414,11 +724,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   int _getTotalSeconds() {
     switch (_pomodoroState) {
       case PomodoroState.focus:
-        return 25 * 60;
+        return FOCUS_MINUTES * 60;
       case PomodoroState.shortBreak:
-        return 5 * 60;
+        return SHORT_BREAK_MINUTES * 60;
       case PomodoroState.longBreak:
-        return 30 * 60;
+        return LONG_BREAK_MINUTES * 60;
     }
   }
 
@@ -676,8 +986,66 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
   }
 
+  /// 출발! 버튼 (1분 대기 시작)
+  void _startWaitingForFlip() {
+    setState(() {
+      _waitingForFlip = true;
+      _isPhoneFaceDown = false; // 사용자가 버튼을 보고 있으므로 앞면으로 가정
+    });
+
+    _vibrate();
+    _showPomodoroPopup('폰을 뒤집어주세요!');
+
+    // 1분 타이머 제거 - 뒤집을 때까지 무한정 대기
+  }
+
   /// 시작/정지 버튼
   Widget _buildControlButton() {
+    // 대기 중
+    if (_waitingForFlip) {
+      return Container(
+        width: double.infinity,
+        height: 56,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.green.shade400, Colors.green.shade600],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.green.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                '폰을 뒤집어주세요...',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       width: double.infinity,
       height: 56,
@@ -700,20 +1068,36 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: _isRunning ? _pauseTimer : _startTimer,
+          onTap: () {
+            if (_isRunning) {
+              _pauseTimer();
+            } else if (!_waitingForFlip) {
+              // 첫 시작 또는 재개 - 모두 폰 뒤집기부터 시작
+              _startWaitingForFlip();
+            } else {
+              // 대기 중 취소
+              setState(() {
+                _waitingForFlip = false;
+              });
+            }
+          },
           borderRadius: BorderRadius.circular(16),
           child: Center(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  _isRunning ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                  _isRunning ? Icons.pause_circle_filled :
+                  _waitingForFlip ? Icons.cancel :
+                  (_currentSession == null ? Icons.flag : Icons.play_circle_filled),
                   color: Colors.white,
                   size: 28,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  _isRunning ? '일시정지' : '시작',
+                  _isRunning ? '일시정지' :
+                  _waitingForFlip ? '대기 취소' :
+                  (_currentSession == null ? '출발!' : '재개'),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
