@@ -100,4 +100,16 @@ public class StudySessionController {
         List<StudySessionDto.Response> sessions = studySessionService.findSessionsByGoalId(goalId);
         return ResponseEntity.ok(sessions);
     }
+
+    /**
+     * 진행 중인 세션의 포모도로 카운트 실시간 업데이트
+     * 포모도로 세트 수를 기반으로 경과 시간도 자동 계산됨 (1세트 = 25분)
+     */
+    @PatchMapping("/study-sessions/{sessionId}/pomo-count")
+    public ResponseEntity<StudySessionDto.Response> updatePomoCount(
+            @PathVariable Long sessionId,
+            @RequestParam int pomoCount) {
+        StudySessionDto.Response response = studySessionService.updatePomoCount(sessionId, pomoCount);
+        return ResponseEntity.ok(response);
+    }
 }

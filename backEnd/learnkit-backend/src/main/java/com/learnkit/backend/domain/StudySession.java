@@ -55,11 +55,29 @@ public class StudySession extends BaseTimeEntity {
 
     // 세션 종료
     public void endSession(int achievedAmount, int durationMinutes, int pomoCount, String note) {
+        if (!isInProgress()) {
+            throw new IllegalStateException("이미 종료된 세션입니다.");
+        }
+
         this.endedAt = LocalDateTime.now();
         this.achievedAmount = achievedAmount;
         this.durationMinutes = durationMinutes;
         this.pomoCount = pomoCount;
         this.note = note;
+    }
+
+    /**
+     * 포모도로 카운트 실시간 업데이트 (진행 중인 세션에만 사용)
+     * 앱 강제 종료 시에도 진행 상황을 보존하기 위해 사용
+     * 포모도로 세트 수를 기반으로 경과 시간도 자동 계산 (1세트 = 25분)
+     */
+    public void updatePomoCount(int pomoCount) {
+        if (!isInProgress()) {
+            throw new IllegalStateException("종료된 세션은 업데이트할 수 없습니다.");
+        }
+        this.pomoCount = pomoCount;
+        // 포모도로 세트 수 기반으로 경과 시간 자동 계산 (1세트 = 25분)
+        this.durationMinutes = pomoCount * 25;
     }
 
     /**

@@ -141,4 +141,17 @@ public class StudySessionService {
                 .map(StudySessionDto.Response::new)
                 .toList();
     }
+
+    /**
+     * 진행 중인 세션의 포모도로 카운트 실시간 업데이트
+     * 앱 강제 종료 시에도 진행 상황을 보존하기 위해 매 포모도로 완료 시마다 호출
+     * 포모도로 세트 수를 기반으로 경과 시간도 자동 계산됨 (1세트 = 25분)
+     */
+    public StudySessionDto.Response updatePomoCount(Long sessionId, int pomoCount) {
+        StudySession session = studySessionRepository.findById(sessionId)
+                .orElseThrow(() -> new StudySessionNotFoundException(sessionId));
+
+        session.updatePomoCount(pomoCount);  // 경과 시간도 자동 계산됨
+        return new StudySessionDto.Response(session);
+    }
 }
