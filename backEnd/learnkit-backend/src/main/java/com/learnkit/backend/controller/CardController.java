@@ -49,8 +49,7 @@ public class CardController {
 
     /**
      * 카드 기본 정보를 조회함 (학습용).
-     * 질문/답, 다음 복습 시간, 난이도만 포함.
-     *
+     * 질문, 답, 난이도, 복습 횟수 포함.
      * @param cardId 카드 ID
      * @return 카드 기본 정보
      */
@@ -90,7 +89,7 @@ public class CardController {
 
     /**
      * 카드를 복습하고 난이도를 선택함.
-     * 복습 시간, 조회 수, 다음 복습 시간이 자동으로 업데이트됨.
+     * 복습 시간, 조회 수, 우선순위 점수 업데이트.
      *
      * @param cardId 카드 ID
      * @param requestDto 난이도 선택 정보
