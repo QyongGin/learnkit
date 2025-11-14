@@ -7,18 +7,12 @@ import '../models/card.dart';
 import '../models/user.dart';
 import '../models/goal.dart';
 import '../models/study_session.dart';
+import '../config/api_config.dart';
 
 class ApiService {
-  // 백엔드 서버 주소
-  // 자동으로 시뮬레이터/실제 기기 구분
-  static String get baseUrl {
-    // 시뮬레이터에서 테스트할 때는 localhost 사용
-    // return 'http://localhost:8080/api';
-
-    // 실제 iOS/Android 기기에서는 Mac의 로컬 IP 사용
-    // ⚠️ WiFi 재연결 시 IP가 변경될 수 있음 - ifconfig 명령으로 확인 필요
-    return 'http://10.200.52.136:8080/api';
-  }
+  // 백엔드 서버 주소 - ApiConfig에서 관리
+  // IP 변경 시: lib/config/api_config.dart 파일에서 _manualIp만 수정하면 됨!
+  static String get baseUrl => ApiConfig.baseUrl;
 
   /// 홈 화면 데이터를 가져옵니다
   static Future<HomeData> fetchHomeData() async {
@@ -799,6 +793,25 @@ class ApiService {
       return data.map((json) => StudySession.fromJson(json)).toList();
     } else {
       throw Exception('세션 목록을 불러오는데 실패했습니다: ${response.statusCode}');
+    }
+  }
+
+  /// 진행 중인 세션의 포모도로 카운트 실시간 업데이트
+  /// 매 포모도로 완료 시마다 호출하여 앱 강제 종료 시에도 진행 상황 보존
+  static Future<StudySession> updatePomoCount({
+    required int sessionId,
+    required int pomoCount,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/study-sessions/$sessionId/pomo-count?pomoCount=$pomoCount'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return StudySession.fromJson(data);
+    } else {
+      throw Exception('포모도로 카운트 업데이트에 실패했습니다: ${response.statusCode}');
     }
   }
 }

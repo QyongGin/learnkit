@@ -1,11 +1,21 @@
+// Dart 비동기 처리 (Timer 사용)
 import 'dart:async';
+// Flutter 기본 위젯
 import 'package:flutter/material.dart';
+// 가속도계 센서 (폰 뒤집기 감지)
 import 'package:sensors_plus/sensors_plus.dart';
+// 진동 기능
 import 'package:vibration/vibration.dart';
+// Provider 패턴 (설정 상태 관리)
+import 'package:provider/provider.dart';
+// 데이터 모델
 import '../models/goal.dart';
 import '../models/study_session.dart';
+// API 통신 및 인증
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+// 설정 Provider (센서 활성화 여부)
+import '../providers/settings_provider.dart';
 
 /// ⏱️ 포모도로 시간 설정 (테스트용으로 쉽게 변경 가능)
 /// 실제 배포 시: FOCUS = 25, SHORT_BREAK = 5, LONG_BREAK = 30
@@ -54,18 +64,33 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   // 세션
   StudySession? _currentSession;
 
-  // 센서 관련
-  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
+  // === 센서 관련 ===
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription; // 가속도계 센서 구독
   bool _isPhoneFaceDown = false; // 폰이 뒤집혀있는지 (화면이 바닥을 향함)
   bool _waitingForFlip = false; // "출발!" 버튼 후 폰 뒤집기 대기 중
-  bool _isShowingPopup = false; // 팝업 표시 중 여부 (팝업이 떠있는 동안 센서 비활성화)
+  bool _isShowingPopup = false; // 팝업 표시 중 여부 (팝업 중 센서 무시)
+  bool _sensorEnabled = true; // 센서 활성화 상태 (설정에서 가져온 값 캐시)
 
   @override
   void initState() {
     super.initState();
-    _initAuth();
-    _initAccelerometer();
+    _initAuth(); // 인증 초기화
+    _initSensorSettings(); // 설정에서 센서 활성화 여부 로드
+    _initAccelerometer(); // 가속도계 센서 초기화
     _initializeSession(); // 목표 로드 후 세션 재개
+  }
+
+  /// 설정에서 센서 활성화 여부 로드
+  /// SettingsProvider에서 isSensorEnabled 값을 가져와 _sensorEnabled에 캐시
+  /// WidgetsBinding.addPostFrameCallback: 위젯 빌드 완료 후 실행 (Provider 접근 가능)
+  void _initSensorSettings() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // listen: false - 일회성 읽기 (변경 감지 불필요)
+      final settings = Provider.of<SettingsProvider>(context, listen: false);
+      setState(() {
+        _sensorEnabled = settings.isSensorEnabled;
+      });
+    });
   }
 
   /// 목표 로드 후 세션 재개 (순서 보장)
@@ -153,23 +178,32 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   }
 
   /// 가속도계 초기화
+  /// 가속도계 센서 초기화 및 이벤트 리스너 등록
+  /// accelerometerEventStream(): 센서 데이터 스트림 (x, y, z 축 가속도)
   void _initAccelerometer() {
     _accelerometerSubscription = accelerometerEventStream().listen((AccelerometerEvent event) {
-      // 경고 팝업이 표시 중이면 센서 무시 (사용자가 선택할 때까지 대기)
-      // 단, _waitingForFlip 상태에서 뜨는 "폰을 뒤집어주세요" 팝업은 센서 작동 허용
+      // 조건 1: 설정에서 센서 비활성화된 경우 센서 무시
+      if (!_sensorEnabled) {
+        return;
+      }
+
+      // 조건 2: 경고 팝업 표시 중이면 센서 무시
+      // 예외: _waitingForFlip 상태의 "폰을 뒤집어주세요" 팝업은 센서 허용
       if (_isShowingPopup && !_waitingForFlip) {
         return;
       }
 
-      // 타이머가 실행 중이거나 대기 중일 때만 센서 감지
+      // 조건 3: 타이머 실행 중이거나 플립 대기 중일 때만 센서 감지
       if (!_isRunning && !_waitingForFlip) {
         return;
       }
 
-      // Z축이 음수이고 절댓값이 크면 화면이 바닥을 향함 (뒤집힌 상태)
+      // Z축 가속도로 폰 방향 감지
+      // Z < -9.5: 화면이 바닥을 향함 (뒤집힌 상태)
+      // Z > 0: 화면이 위를 향함 (정상 상태)
       bool isFaceDown = event.z < -9.5;
 
-      // 상태 변화 감지 시 즉시 반응 (디바운스 제거)
+      // 상태 변화 시에만 처리 (중복 이벤트 방지)
       if (isFaceDown != _isPhoneFaceDown) {
         setState(() {
           _isPhoneFaceDown = isFaceDown;
@@ -986,17 +1020,26 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
   }
 
-  /// 출발! 버튼 (1분 대기 시작)
+  /// 출발! 버튼 - 센서 활성화 여부에 따라 다르게 동작
+  /// 포모도로 시작 전 센서 설정에 따른 처리
+  /// - 센서 활성화: 폰 뒤집기 대기 상태로 전환
+  /// - 센서 비활성화: 즉시 타이머 시작
   void _startWaitingForFlip() {
-    setState(() {
-      _waitingForFlip = true;
-      _isPhoneFaceDown = false; // 사용자가 버튼을 보고 있으므로 앞면으로 가정
-    });
+    if (_sensorEnabled) {
+      // 센서 활성화 모드: 폰 뒤집기 대기
+      setState(() {
+        _waitingForFlip = true; // 플립 대기 상태 활성화
+        _isPhoneFaceDown = false; // 사용자가 화면을 보고 있으므로 앞면 상태
+      });
 
-    _vibrate();
-    _showPomodoroPopup('폰을 뒤집어주세요!');
-
-    // 1분 타이머 제거 - 뒤집을 때까지 무한정 대기
+      _vibrate(); // 햅틱 피드백
+      _showPomodoroPopup('폰을 뒤집어주세요!'); // 안내 메시지
+    } else {
+      // 센서 비활성화 모드: 즉시 타이머 시작
+      _vibrate(); // 햅틱 피드백
+      _showPomodoroPopup('${_totalPomodoros + 1}포모 시작!'); // 시작 메시지
+      _startTimer(); // 타이머 즉시 시작
+    }
   }
 
   /// 시작/정지 버튼

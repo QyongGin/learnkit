@@ -33,16 +33,24 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
+  # iOS 스타일 아이콘
   cupertino_icons: ^1.0.8
+  # HTTP 통신 (백엔드 API 호출)
   http: ^1.1.0
+  # 날짜/시간 포맷팅 및 다국어 지원
   intl: ^0.20.2
+  # 차트 그래프 (학습 통계 시각화)
   fl_chart: ^0.69.0
+  # 캘린더 위젯 (일정 관리)
   table_calendar: ^3.1.2
+  # 로컬 저장소 (설정 데이터 영구 저장)
   shared_preferences: ^2.2.2
+  # 가속도계 센서 (폰 뒤집기 감지)
   sensors_plus: ^6.0.1
+  # 진동 기능 (햅틱 피드백)
   vibration: ^2.0.0
+  # 상태 관리 (Provider 패턴)
+  provider: ^6.1.1
 
 dev_dependencies:
   flutter_test:

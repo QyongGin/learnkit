@@ -5,23 +5,26 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "frontend",
-            "cwd": "frontend",
-            "request": "launch",
-            "type": "dart"
-        },
-        {
-            "name": "frontend (profile mode)",
-            "cwd": "frontend",
+            "name": "LearnKit (iPhone)",
+            "cwd": "front",
             "request": "launch",
             "type": "dart",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "LearnKit (profile mode)",
+            "cwd": "front",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
             "flutterMode": "profile"
         },
         {
-            "name": "frontend (release mode)",
-            "cwd": "frontend",
+            "name": "LearnKit (release mode)",
+            "cwd": "front",
             "request": "launch",
             "type": "dart",
+            "program": "lib/main.dart",
             "flutterMode": "release"
         }
     ]

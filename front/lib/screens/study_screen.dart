@@ -344,7 +344,7 @@ class _StudyScreenState extends State<StudyScreen> {
             // 난이도 버튼들
             _buildDifficultyButton(
               '쉬움 😊',
-              '${widget.wordBook.easyIntervalMinutes}분 후 복습',
+              '${widget.wordBook.easyFrequencyRatio}배',
               const Color(0xFF4CAF50),
               model.CardDifficulty.EASY,
             ),
@@ -352,7 +352,7 @@ class _StudyScreenState extends State<StudyScreen> {
 
             _buildDifficultyButton(
               '보통 😐',
-              '${widget.wordBook.normalIntervalMinutes}분 후 복습',
+              '${widget.wordBook.normalFrequencyRatio}배',
               const Color(0xFF4A90E2),
               model.CardDifficulty.NORMAL,
             ),
@@ -360,7 +360,7 @@ class _StudyScreenState extends State<StudyScreen> {
 
             _buildDifficultyButton(
               '어려움 😰',
-              '${widget.wordBook.hardIntervalMinutes}분 후 복습',
+              '${widget.wordBook.hardFrequencyRatio}배',
               const Color(0xFF9C27B0),
               model.CardDifficulty.HARD,
             ),
