@@ -21,7 +21,7 @@ public class StudySessionDto {
     @Setter
     @NoArgsConstructor
     public static class StartRequest {
-        private Long goalId; // 목표 ID (nullable)
+        private Integer goalId; // 목표 ID (nullable)
     }
 
     /**
@@ -45,7 +45,7 @@ public class StudySessionDto {
     @Getter
     public static class Response {
         private final Long id;
-        private final Long goalId;
+        private final Integer goalId;
         private final String goalTitle;          // 목표 제목(편의성)
         private final LocalDateTime startedAt;
         private final LocalDateTime endedAt;

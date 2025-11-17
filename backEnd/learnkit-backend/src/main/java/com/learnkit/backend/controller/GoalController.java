@@ -60,7 +60,7 @@ public class GoalController {
      * @return 목표 상세 정보
      */
     @GetMapping("/goals/{goalId}")
-    public ResponseEntity<GoalDto.Response> getGoal(@PathVariable Long goalId) {
+    public ResponseEntity<GoalDto.Response> getGoal(@PathVariable Integer goalId) {
         GoalDto.Response goal = goalService.findGoalById(goalId);
         return ResponseEntity.ok(goal);
     }
@@ -73,7 +73,7 @@ public class GoalController {
      * @return 수정된 목표 정보
      */
     @PatchMapping("/goals/{goalId}")
-    public ResponseEntity<GoalDto.Response> updateGoal(@PathVariable Long goalId, @RequestBody GoalDto.UpdateRequest requestDto) {
+    public ResponseEntity<GoalDto.Response> updateGoal(@PathVariable Integer goalId, @RequestBody GoalDto.UpdateRequest requestDto) {
         GoalDto.Response updatedGoal = goalService.updateGoal(goalId, requestDto);
         return ResponseEntity.ok(updatedGoal);
     }
@@ -86,7 +86,7 @@ public class GoalController {
      * @return 업데이트된 목표 정보
      */
     @PatchMapping("/goals/{goalId}/progress")
-    public ResponseEntity<GoalDto.Response> addProgress(@PathVariable Long goalId, @RequestBody GoalDto.AddProgressRequest requestDto) {
+    public ResponseEntity<GoalDto.Response> addProgress(@PathVariable Integer goalId, @RequestBody GoalDto.AddProgressRequest requestDto) {
         GoalDto.Response updatedGoal = goalService.addProgress(goalId, requestDto);
         return ResponseEntity.ok(updatedGoal);
     }
@@ -98,7 +98,7 @@ public class GoalController {
      * @return 삭제 완료 응답
      */
     @DeleteMapping("/goals/{goalId}")
-    public ResponseEntity<Void> deleteGoal(@PathVariable Long goalId) {
+    public ResponseEntity<Void> deleteGoal(@PathVariable Integer goalId) {
         goalService.deleteGoal(goalId);
         return ResponseEntity.noContent().build();
     }

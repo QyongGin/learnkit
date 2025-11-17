@@ -65,7 +65,7 @@ public class GoalDto {
      */
     @Getter
     public static class Response {
-        private final Long id;
+        private final Integer id;
         private final String title;
         private final LocalDate startDate;
         private final LocalDate endDate;

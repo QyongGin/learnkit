@@ -41,6 +41,21 @@ public class UserController {
         return ResponseEntity.ok(responseDto);
     }
 
+    /**
+     * 프로필 이미지 업데이트 (Supabase 업로드 후 호출)
+     *
+     * @param userId 사용자 ID
+     * @param requestDto Supabase에서 받은 이미지 URL
+     * @return 업데이트된 사용자 정보
+     */
+    @PatchMapping("/users/{userId}/profile-image")
+    public ResponseEntity<UserDto.Response> updateProfileImage(
+            @PathVariable Long userId,
+            @RequestBody UserDto.UpdateProfileImageRequest requestDto) {
+        UserDto.Response responseDto = userService.updateProfileImage(userId, requestDto);
+        return ResponseEntity.ok(responseDto);
+    }
+
     // 비밀번호 변경
     @PatchMapping("/users/{userId}/password")
     public ResponseEntity<Void> changePassword(

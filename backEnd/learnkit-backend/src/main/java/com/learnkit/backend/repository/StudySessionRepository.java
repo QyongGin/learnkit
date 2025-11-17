@@ -37,7 +37,7 @@ public interface StudySessionRepository extends JpaRepository<StudySession, Long
      * @param goalId 목표 ID
      * @return 학습 세션 목록
      */
-    List<StudySession> findByGoalId(Long goalId);
+    List<StudySession> findByGoalId(Integer goalId);
 
     /**
      * 특정 사용자의 특정 기간 학습 세션 조회 (통계용)

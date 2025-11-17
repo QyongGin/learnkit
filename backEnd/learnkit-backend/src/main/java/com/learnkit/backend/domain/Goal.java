@@ -15,7 +15,7 @@ public class Goal extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY) // N:1 관계, 지연로딩 방식
     @JoinColumn(name = "user_id", nullable = false) // 컬럼 매핑

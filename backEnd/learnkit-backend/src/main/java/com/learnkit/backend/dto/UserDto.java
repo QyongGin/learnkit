@@ -40,6 +40,17 @@ public class UserDto {
     }
 
     /**
+     * [요청용] 프로필 이미지 업데이트 전용 DTO
+     * PATCH /api/users/{userId}/profile-image
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class UpdateProfileImageRequest {
+        private String profileImageUrl;  // Supabase에서 받은 이미지 URL
+    }
+
+    /**
      * [요청용] 비밀번호 변경을 위한 DTO
      */
     @Getter

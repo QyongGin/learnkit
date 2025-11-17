@@ -48,6 +48,17 @@ public class UserService {
         return new UserDto.Response(user);
     }
 
+    // 프로필 이미지 업데이트 (전용 메서드)
+    public UserDto.Response updateProfileImage(Long userId, UserDto.UpdateProfileImageRequest requestDto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        // 닉네임은 null, 이미지 URL만 업데이트
+        user.updateProfile(null, requestDto.getProfileImageUrl());
+
+        return new UserDto.Response(user);
+    }
+
     // 비밀번호 변경 (Security 비활성화로 인해 평문 저장)
     public void changePassword(Long userId, UserDto.ChangePasswordRequest requestDto) {
         // 1. DB에서 사용자를 찾아옵니다.

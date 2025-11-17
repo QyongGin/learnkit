@@ -71,7 +71,7 @@ public class GoalService {
      * @param goalId 목표 ID
      * @return 목표 상세 정보
      */
-    public GoalDto.Response findGoalById(Long goalId) {
+    public GoalDto.Response findGoalById(Integer goalId) {
         Goal goal = goalRepository.findById(goalId)
                 .orElseThrow(() -> new GoalNotFoundException(goalId));
         return new GoalDto.Response(goal);
@@ -84,7 +84,7 @@ public class GoalService {
      * @param requestDto 수정할 정보
      * @return 수정된 목표 정보
      */
-    public GoalDto.Response updateGoal(Long goalId, GoalDto.UpdateRequest requestDto) {
+    public GoalDto.Response updateGoal(Integer goalId, GoalDto.UpdateRequest requestDto) {
         Goal goal = goalRepository.findById(goalId)
                 .orElseThrow(() -> new GoalNotFoundException(goalId));
 
@@ -101,7 +101,7 @@ public class GoalService {
      * @param requestDto 추가할 진행도
      * @return 업데이트된 목표 정보
      */
-    public GoalDto.Response addProgress(Long goalId, GoalDto.AddProgressRequest requestDto) {
+    public GoalDto.Response addProgress(Integer goalId, GoalDto.AddProgressRequest requestDto) {
         Goal goal = goalRepository.findById(goalId)
                 .orElseThrow(() -> new GoalNotFoundException(goalId));
 
@@ -115,7 +115,7 @@ public class GoalService {
      *
      * @param goalId 목표 ID
      */
-    public void deleteGoal(Long goalId) {
+    public void deleteGoal(Integer goalId) {
         Goal goal = goalRepository.findById(goalId)
                 .orElseThrow(() -> new GoalNotFoundException(goalId));
         goalRepository.delete(goal);

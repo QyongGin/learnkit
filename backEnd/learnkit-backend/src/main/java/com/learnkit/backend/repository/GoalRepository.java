@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface GoalRepository extends JpaRepository<Goal, Long> {
+public interface GoalRepository extends JpaRepository<Goal, Integer> {
 
     /**
      * 특정 사용자의 모든 목표를 조회

@@ -135,7 +135,7 @@ public class StudySessionService {
     /**
      * 특정 목표에 연결된 학습 세션 조회
      */
-    public List<StudySessionDto.Response> findSessionsByGoalId(Long goalId) {
+    public List<StudySessionDto.Response> findSessionsByGoalId(Integer goalId) {
         List<StudySession> sessions = studySessionRepository.findByGoalId(goalId);
         return sessions.stream()
                 .map(StudySessionDto.Response::new)

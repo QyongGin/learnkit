@@ -96,7 +96,7 @@ public class StudySessionController {
      */
     @GetMapping("/study-sessions")
     public ResponseEntity<List<StudySessionDto.Response>> getSessionsByGoal(
-            @RequestParam Long goalId) {
+            @RequestParam Integer goalId) {
         List<StudySessionDto.Response> sessions = studySessionService.findSessionsByGoalId(goalId);
         return ResponseEntity.ok(sessions);
     }
