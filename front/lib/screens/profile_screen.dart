@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import 'package:logger/logger.dart'; // logger 패키지 
+import 'dart:io'; // 파일 처리 (이미지 파일 다루기)
+import 'package:image_picker/image_picker.dart'; // 이미지 선택 (갤러리/카메라)';
+import '../services/supabase_service.dart'; // Supabase 업로드 서비스 
 
-/// 프로필 화면 (Toss 스타일)
+final logger = Logger(); // logger 인스턴스 try-catch 예외용
+
+/// 프로필 화면 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -12,6 +18,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+
+  // dart에서 "_"는 private을 의미함.
   User? _user;
   bool _isLoading = true;
   int _userId = 1;
@@ -22,6 +30,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _easyCards = 0;
   int _normalCards = 0;
   int _hardCards = 0;
+
+  // 이미지 업로드 관련 변수 추가
+  File? _selectedImage; // 선택한 이미지 파일. "?"는 nullable. null을 가질 수 있다는 의미.
+  bool _isUploading = false; // 업로드 상태
+  String? _profileImageUrl; // Supabase에서 받은 이미지 URL
+  final ImagePicker _picker = ImagePicker(); // 갤러리/카메라 열기 도구
+
+  /// 갤러리에서 이미지 선택
+  // Future: 끝나지 않는 오래된 작업 진행 시 사용. 앱이 멈추는 현상(UI 멈춤)을 막기 위해서.
+  // Future는 async, await을 통해 사용한다.   
+  Future<void> _pickImage() async {
+    try {
+      // 갤러리에서 이미지 선택
+      // ImageSource.camera로 변경하면 카메라 사용
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery, // 갤러리 열기)
+        maxWidth: 1024, // 최대 너비
+        maxHeight: 1024, // 최대 높이
+        imageQuality: 85, // 이미지 품질 (0~100)
+      );
+
+      // 선택 취소 시 
+      if (image == null) return;
+
+      // 선택한 이미지 저장
+      setState(() {
+        _selectedImage = File(image.path);
+      });
+
+      // 이미지 선택 즉시 업로드
+      await _uploadImage();
+    } catch(e, stackTrace) { // 'e' 에러와 'stackTrace' 에러 위치 받기
+      logger.e(
+        '이미지 선택 실패', // 무슨 작업하다 실패했는지 메시지 
+        error:e,  // error: 잡힌 에러 객체(e)
+        stackTrace: stackTrace // stackTrace: 에러 발생 코드 위치 
+      );
+    }
+  }
+
+  /// Supabase에 이미지 업로드
+  Future<void> _uploadImage() async {
+    // 선택한 이미지 없으면 종료
+    if (_selectedImage == null) return;
+
+    // 업로드 시작 (로딩 스피너 표시)
+    setState(() {
+      _isUploading = true; // 업로드 시작 (로딩 표시)
+    });
+
+    try {
+      // 1. Supabase Storage에 업로드
+      final String imageUrl = await SupabaseService.uploadProfileImage( // Supabase에 업로드 
+        userId: _userId.toString(),
+        imageFile: _selectedImage!, // '?'의 반대. null-check operator로서, 이 코드 실행 시점에서 무조건 null이라 보장하고 선언한 클래스 타입(File)취급 
+      );
+
+      logger.i('업로드 성공 URL: $imageUrl'); // 디버그 콘솔 창에 출력
+
+      // 2. 백엔드 DB에 URL 저장 (기존 updateProfile API 사용)
+      final updatedUser = await ApiService.updateProfile(
+        userId: _userId,
+        profileImageUrl: imageUrl,
+      );
+      logger.i('백엔드 DB 저장 성공');
+
+      // 3. 업데이트된 사용자 정보 반영
+      setState(() {
+        _user = updatedUser; // 백엔드에서 받은 최신 사용자 정보로 업데이트
+        _profileImageUrl = imageUrl;
+      });
+
+      // 3. 성공 메시지 표시
+      if (mounted) {
+        // ScaffoldMessenger: 화면 하단에 성공/실패 메시지 출력
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('프로필 이미지 업데이트 완료')),
+        );
+      }
+
+    } catch (e,stackTrace) {
+      logger.e(
+        '업로드 실패',
+        error:e,
+        stackTrace: stackTrace
+      );
+      // 에러 메시지 표시
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('업로드 실패: $e')),
+        );
+      }
+    } finally { // 성공/실패 관계없이 로딩 종료
+      // 업로드 종료 (로딩 스피너 숨김)
+      setState(() {
+        _isUploading = false;
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -41,6 +148,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       // 사용자 정보 로드
       final user = await ApiService.fetchUserById(_userId);
+
+      // DB에 저장된 프로필 이미지 URL 가져오기
+      if (user.profileImageUrl != null) {
+        setState(() {
+          _profileImageUrl = user.profileImageUrl;
+        });
+      }
 
       // 단어장 통계 로드
       final wordBooks = await ApiService.fetchWordBooks(_userId);
@@ -156,35 +270,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         children: [
           // 프로필 아이콘
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                _user?.nickname.substring(0, 1).toUpperCase() ?? 'U',
-                style: const TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
+          _buildProfileImage(),
           const SizedBox(height: 16),
 
           // 닉네임
@@ -212,6 +298,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+  /// 프로필 이미지 위젯 (클릭 가능)
+Widget _buildProfileImage() {
+  return GestureDetector(
+    onTap: _isUploading ? null : _pickImage, // 업로드 중엔 비활성화
+    child: Stack(
+      children: [
+        // 프로필 이미지 표시
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: _selectedImage == null && _profileImageUrl == null
+                ? const LinearGradient(
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  )
+                : null,
+            image: _selectedImage != null || _profileImageUrl != null
+                ? DecorationImage(
+                    image: _selectedImage != null
+                        ? FileImage(_selectedImage!) // 선택한 이미지
+                        : NetworkImage(_profileImageUrl!) as ImageProvider, // URL 이미지
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: _selectedImage == null && _profileImageUrl == null
+              ? Center(
+                  child: Text(
+                    _user?.nickname.substring(0, 1).toUpperCase() ?? 'U',
+                    style: const TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                )
+              : null,
+        ),
+        
+        // 업로드 중 로딩 표시
+        if (_isUploading)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        
+        // 카메라 아이콘 (편집 가능 표시)
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: const Icon(
+              Icons.camera_alt,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   /// 단어장/카드 통계 카드
   Widget _buildStatsCard() {

@@ -51,6 +51,11 @@ dependencies:
   vibration: ^2.0.0
   # 상태 관리 (Provider 패턴)
   provider: ^6.1.1
+  # Supabase Flutter SDK (Storage, Auth, Database 등)
+  supabase_flutter: ^2.0.0
+  # 이미지 선택 (갤러리/카메라)
+  image_picker: ^1.0.7
+  logger: ^2.6.2
 
 dev_dependencies:
   flutter_test:

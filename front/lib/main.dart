@@ -11,10 +11,14 @@ import 'package:intl/date_symbol_data_local.dart';
 // Provider: 앱 전체에서 데이터를 공유하는 패키지
 import 'package:provider/provider.dart';
 
-// 우리가 만든 파일들
+// Supabase: 백엔드 서비스 (Storage, Auth, Database)
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'screens/home_screen.dart';           // 홈 화면
 import 'services/auth_service.dart';         // 로그인 서비스
 import 'providers/settings_provider.dart';   // 설정 관리 Provider
+
+import 'config/supabase_config.dart'; 
 
 /// 앱의 시작점 (진입점)
 ///
@@ -30,6 +34,12 @@ void main() async {
 
   // 로그인 서비스 초기화 (userId=1로 자동 로그인)
   await AuthService.getInstance();
+
+  // Supabase 초기화
+  await Supabase.initialize(
+    url: SupabaseConfig.url,  
+    anonKey: SupabaseConfig.anonKey,
+  );
 
   // 앱 시작
   // runApp: Flutter에게 "이제 앱을 화면에 그려!" 라고 알림
