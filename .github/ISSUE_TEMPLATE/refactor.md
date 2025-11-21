@@ -1,4 +1,3 @@
-```markdown
 ---
 name: ♻️ 리팩토링 및 개선 (Refactor)
 about: 코드 품질 개선 및 구조 변경을 기록합니다.
