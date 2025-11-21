@@ -1,8 +1,6 @@
 ---
 name: ✨ 기능 추가 (Feature Request)
 about: 새로운 기능을 제안하고 구현 작업을 정리합니다.
-title: "[Feat] "
-labels: feature
 assignees: ''
 ---
 
