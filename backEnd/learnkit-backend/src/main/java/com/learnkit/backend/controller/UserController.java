@@ -55,14 +55,4 @@ public class UserController {
         UserDto.Response responseDto = userService.updateProfileImage(userId, requestDto);
         return ResponseEntity.ok(responseDto);
     }
-
-    // 비밀번호 변경
-    @PatchMapping("/users/{userId}/password")
-    public ResponseEntity<Void> changePassword(
-            @PathVariable Long userId,
-            @RequestBody UserDto.ChangePasswordRequest requestDto) {
-        userService.changePassword(userId, requestDto);
-        // 비밀번호 변경 성공 시 204 No Content 응답
-        return ResponseEntity.noContent().build();
-    }
 }
