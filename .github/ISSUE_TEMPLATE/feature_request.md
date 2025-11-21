@@ -1,24 +1,19 @@
 ---
-name: ✨ Feature Request
-about: 새로운 기능을 제안해주세요.
+name: ✨ 기능 추가 (Feature Request)
+about: 새로운 기능을 제안하고 구현 작업을 정리합니다.
 title: "[Feat] "
-labels: "✨ Feature"
+labels: feature
 assignees: ''
 ---
 
-## 💡 제안 배경 (Why)
-이 기능이 왜 필요한지, 어떤 문제를 해결하는지 설명해주세요.
-(예: 사용자가 단어를 저장할 때 날짜를 일일이 입력하기 불편함)
+## 💡 기능 개요 (Summary)
+- 예: 사용자가 지난주 학습 통계를 볼 수 있는 API가 필요함.
 
-## 📝 기능 설명 (What)
-어떤 기능인지 구체적으로 묘사해주세요.
-(예: 단어 저장 시 오늘 날짜가 자동으로 입력되도록 변경)
-
-## ✅ 할 일 (To-Do)
-- [ ] UI 기획 및 디자인
-- [ ] API 연동 (Spring Boot)
-- [ ] Flutter UI 구현
+## ✅ 할 일 목록 (Tasks)
+- [ ] 엔티티 및 DTO 설계
+- [ ] 비즈니스 로직 구현 (Service)
+- [ ] API 엔드포인트 구현 (Controller)
 - [ ] 테스트 코드 작성
+- [ ] API 문서화 (Swagger/RestDocs)
 
-## 💬 기타
-참고할 만한 레퍼런스나 스크린샷이 있다면 첨부해주세요.
+## 📝 참고 사항 (Note)
