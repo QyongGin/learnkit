@@ -59,4 +59,12 @@ public interface CardRepository extends JpaRepository<Card, Long> {
      */
     // findFirst - 첫 번째 결과만 가져옴 By - WHERE 절 시작 WordBookId - 단어장 ID 조건 OrderBy - 정렬 ReviewPriority - 정렬 기준 필드 Asc - 오름차순
     java.util.Optional<Card> findFirstByWordBookIdOrderByReviewPriorityAsc(Long wordBookId);
+
+    /**
+     * 특정 사용자의 모든 카드 조회 (주간 통계용)
+     *
+     * @param userId 사용자 ID
+     * @return 사용자의 모든 카드 목록
+     */
+    List<Card> findByWordBookUserId(Long userId);
 }

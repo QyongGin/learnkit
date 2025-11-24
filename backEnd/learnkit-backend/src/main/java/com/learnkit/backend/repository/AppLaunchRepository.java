@@ -16,18 +16,12 @@ import java.util.List;
 public interface AppLaunchRepository extends JpaRepository<AppLaunch, Integer> {
 
     /**
-     * 특정 사용자의 앱 실행 기록 조회
-     */
-    List<AppLaunch> findByUserId(Long userId);
-
-    /**
-     * 특정 기간 동안의 앱 실행 기록 조회
-     */
-    List<AppLaunch> findByUserIdAndLaunchTimeBetween(Long userId, LocalDateTime start, LocalDateTime end);
-
-    /**
      * 최근 N일간의 앱 실행 기록 조회 (시간대 분석용)
+     * @param userId 사용자 ID
+     * @param since 조회 시작 시점
+     * @return 지정 시점 이후의 앱 실행 기록 목록 (최신순 정렬)
      */
+     // ":" 쿼리문의 빈칸을 만듦. "since" 빈칸에 들어갈 변수의 이름. :since 안에 매개변수로 받은 since가 들어감
     @Query("SELECT a FROM AppLaunch a WHERE a.user.id = :userId AND a.launchTime >= :since ORDER BY a.launchTime DESC")
     List<AppLaunch> findRecentLaunches(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 }

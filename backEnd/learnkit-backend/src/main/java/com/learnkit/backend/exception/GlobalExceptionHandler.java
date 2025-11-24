@@ -1,9 +1,11 @@
 package com.learnkit.backend.exception;
 
 import com.learnkit.backend.exception.custom.CardNotFoundException;
+import com.learnkit.backend.exception.custom.GoalStudySessionNotFoundException;
 import com.learnkit.backend.exception.custom.ScheduleNotFoundException;
 import com.learnkit.backend.exception.custom.UserNotFoundException;
 import com.learnkit.backend.exception.custom.WordBookNotFoundException;
+import com.learnkit.backend.exception.custom.WordBookStudySessionNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -80,6 +82,36 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(CardNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleCardNotFound(CardNotFoundException e) {
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                e.getMessage(),
+                LocalDateTime.now().toString()
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * 목표 학습 세션을 찾지 못할 때 발생하는 예외를 처리
+     */
+    @ExceptionHandler(GoalStudySessionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleGoalStudySessionNotFound(GoalStudySessionNotFoundException e) {
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                e.getMessage(),
+                LocalDateTime.now().toString()
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * 단어장 학습 세션을 찾지 못할 때 발생하는 예외를 처리
+     */
+    @ExceptionHandler(WordBookStudySessionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleWordBookStudySessionNotFound(WordBookStudySessionNotFoundException e) {
 
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
