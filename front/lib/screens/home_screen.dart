@@ -12,12 +12,13 @@ import '../widgets/calendar_widget.dart';
 // 화면들
 import 'schedule_form_screen.dart';
 import 'wordbook_list_screen.dart';
+import 'study_session_screen.dart';
 import 'profile_screen.dart';
 import 'pomodoro_screen.dart';
 import 'goal_list_screen.dart';
 import 'study_history_screen.dart';
-import 'weekly_summary_screen.dart';
 import 'settings_screen.dart';
+import 'statistics_screen.dart';
 // 날짜 포맷팅 패키지
 import 'package:intl/intl.dart';
 
@@ -54,7 +55,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int _userId = 1; // 현재 사용자 ID (기본값 1)
 
   // 단어장 통계
-  int _totalCards = 0; // 전체 카드 수 (미래 사용 대비)
   int _learnedCards = 0; // 쉬움 난이도 (EASY)
   int _reviewCards = 0; // 보통 난이도 (NORMAL)
   int _difficultCards = 0; // 어려움 난이도 (HARD)
@@ -155,11 +155,24 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 앱 시작 시 진행 중인 세션 확인
   Future<void> _checkActiveSession() async {
     try {
-      final activeSession = await ApiService.fetchActivePomodoroSession(_userId);
+      // 목표 학습 세션 확인
+      final activePomodoroSession = await ApiService.fetchActivePomodoroSession(_userId);
 
-      if (activeSession != null && mounted) {
+      if (activePomodoroSession != null && mounted) {
         // 진행 중인 세션이 있으면 팝업 표시
-        _showActiveSessionDialog(activeSession);
+        _showActiveSessionDialog(activePomodoroSession);
+      }
+
+      // 단어장 학습 세션 확인
+      try {
+        final activeWordBookSession = await ApiService.fetchActiveWordBookSession(_userId);
+        if (activeWordBookSession != null && mounted) {
+          print('⚠️ 진행 중인 단어장 학습 세션 발견 (ID=${activeWordBookSession.id})');
+          // 사용자에게 선택 옵션 제공
+          _showWordBookSessionDialog(activeWordBookSession);
+        }
+      } catch (e) {
+        print('단어장 세션 확인 중 에러: $e');
       }
     } catch (e) {
       // 에러 시 무시 (세션 없음으로 처리)
@@ -218,6 +231,105 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// 진행 중인 단어장 학습 세션 팝업
+  void _showWordBookSessionDialog(dynamic activeSession) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ 미완료된 학습'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('이전에 시작한 단어장 학습이 정상적으로 종료되지 않았습니다.'),
+            const SizedBox(height: 12),
+            if (activeSession.wordBookTitle != null)
+              Text('단어장: ${activeSession.wordBookTitle}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text(
+              '학습을 이어서 하시겠습니까?',
+              style: TextStyle(fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              // 삭제 선택 - 세션 삭제 (기록 남기지 않음)
+              try {
+                await ApiService.deleteWordBookSession(activeSession.id);
+                if (mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('미완료 학습을 삭제했습니다')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('삭제 실패: $e')),
+                  );
+                }
+              }
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('삭제'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              // 이어하기 - 학습 화면으로 직접 이동
+              Navigator.of(context).pop();
+              
+              if (activeSession.wordBookId != null) {
+                try {
+                  // 로딩 표시
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('학습 준비 중...')),
+                    );
+                  }
+                  
+                  // 단어장 정보 가져오기
+                  final wordBook = await ApiService.fetchWordBook(
+                    activeSession.wordBookId!,
+                  );
+                  
+                  if (wordBook != null && mounted) {
+                    // 학습 화면으로 이동 (기존 세션 ID 전달)
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => StudySessionScreen(
+                          wordBook: wordBook,
+                          existingSessionId: activeSession.id,
+                        ),
+                      ),
+                    );
+                  } else if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('단어장 정보를 불러올 수 없습니다')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('학습 이어하기 실패: $e')),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('이어하기'),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 진행 중인 세션 종료
   Future<void> _endActiveSession(int sessionId) async {
     try {
@@ -244,21 +356,18 @@ class _HomeScreenState extends State<HomeScreen> {
       final wordBooks = await ApiService.fetchWordBooks(_userId);
 
       // 각 단어장의 통계 가져와서 합산
-      int total = 0;
       int easy = 0;
       int normal = 0;
       int hard = 0;
 
       for (var wordBook in wordBooks) {
         final stats = await ApiService.fetchWordBookStatistics(wordBook.id);
-        total += stats.totalCount;
         easy += stats.easyCount;
         normal += stats.normalCount;
         hard += stats.hardCount;
       }
 
       setState(() {
-        _totalCards = total;
         _learnedCards = easy; // 쉬움 = 학습 완료
         _reviewCards = normal; // 보통 = 복습 필요
         _difficultCards = hard; // 어려움
@@ -524,21 +633,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                           ),
 
-                          // 주간 정산 섹션
-                          SectionCard(
-                            title: '주간 정산',
-                            subtitle: _homeData?.weeklyStats.displayText ?? '',
-                            onTap: () {
-                              // 주간 정산 상세 화면으로 이동
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const WeeklySummaryScreen(),
-                                ),
-                              );
-                            },
-                          ),
-
                           const SizedBox(height: 80),
                         ],
                       ),
@@ -563,7 +657,7 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedItemColor: const Color(0xFF6366F1),  // 선택된 아이템 색상
           unselectedItemColor: Colors.grey,  // 미선택 아이템 색상
           currentIndex: 1,  // 현재 홈 화면 (1번 인덱스)
-          type: BottomNavigationBarType.fixed,  // 고정 타입 (3개 아이템)
+          type: BottomNavigationBarType.fixed,  // 고정 타입 (4개 아이템)
           items: const [
             // 0번: 프로필
             BottomNavigationBarItem(
@@ -575,7 +669,12 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icon(Icons.home),
               label: '',
             ),
-            // 2번: 설정
+            // 2번: 통계
+            BottomNavigationBarItem(
+              icon: Icon(Icons.bar_chart),
+              label: '',
+            ),
+            // 3번: 설정
             BottomNavigationBarItem(
               icon: Icon(Icons.settings),
               label: '',
@@ -597,6 +696,14 @@ class _HomeScreenState extends State<HomeScreen> {
             } else if (index == 1) {
               // 이미 홈 화면이므로 아무 동작 없음
             } else if (index == 2) {
+              // 통계 화면으로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const StatisticsScreen(),
+                ),
+              );
+            } else if (index == 3) {
               // 설정 화면으로 이동
               Navigator.push(
                 context,

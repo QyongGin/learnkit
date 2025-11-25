@@ -8,10 +8,12 @@ import '../services/api_service.dart';
 /// Anki 스타일 학습 세션 화면 (토스 디자인)
 class StudySessionScreen extends StatefulWidget {
   final WordBook wordBook;
+  final int? existingSessionId; // 이어하기용 기존 세션 ID
 
   const StudySessionScreen({
     super.key,
     required this.wordBook,
+    this.existingSessionId,
   });
 
   @override
@@ -24,7 +26,9 @@ class _StudySessionScreenState extends State<StudySessionScreen>
   bool _isFlipped = false; // 카드 뒤집힘 상태
   model.Card? _currentCard;
   SessionStartResponse? _sessionInfo;
+  int? _sessionId; // 실제 백엔드 세션 ID
   int _reviewedCount = 0;
+  int _userId = 1; // 기본 사용자 ID
 
   // 학습 시작 전 통계 (before)
   int _beforeEasyCount = 0;
@@ -89,15 +93,48 @@ class _StudySessionScreenState extends State<StudySessionScreen>
       _beforeNormalCount = beforeStats.normalCount;
       _beforeHardCount = beforeStats.hardCount;
 
-      // 세션 시작 API 호출
-      final sessionInfo = await ApiService.startStudySession(widget.wordBook.id);
+      // 기존 세션이 있으면 이어하기, 없으면 새로 시작
+      if (widget.existingSessionId != null) {
+        // 이어하기: 기존 세션 ID 사용
+        print('🔄 기존 세션 이어하기: sessionId=${widget.existingSessionId}');
+        _sessionId = widget.existingSessionId;
+        
+        // 통계 정보는 현재 상태로 설정
+        _sessionInfo = SessionStartResponse(
+          totalCards: beforeStats.totalCount,
+          easyCount: beforeStats.easyCount,
+          normalCount: beforeStats.normalCount,
+          hardCount: beforeStats.hardCount,
+        );
+      } else {
+        // 새로 시작: 단어장 학습 세션 API 호출
+        print('🎯 새 세션 시작: wordBookId=${widget.wordBook.id}');
+        final session = await ApiService.startWordBookSession(
+          userId: _userId,
+          wordBookId: widget.wordBook.id,
+          initialHardCount: beforeStats.hardCount,
+          initialNormalCount: beforeStats.normalCount,
+          initialEasyCount: beforeStats.easyCount,
+        );
+        
+        _sessionId = session.id;
+        
+        print('✅ 세션 생성 완료: sessionId=$_sessionId');
+        
+        // 통계 정보 설정
+        _sessionInfo = SessionStartResponse(
+          totalCards: beforeStats.totalCount,
+          easyCount: beforeStats.easyCount,
+          normalCount: beforeStats.normalCount,
+          hardCount: beforeStats.hardCount,
+        );
+      }
 
-      // 첫 번째 카드 로드
+      // 첫 번째(또는 다음) 카드 로드
       final firstCard = await ApiService.getNextCard(widget.wordBook.id);
 
       if (mounted) {
         setState(() {
-          _sessionInfo = sessionInfo;
           _currentCard = firstCard;
           _isLoading = false;
           _isFlipped = false;
@@ -157,7 +194,12 @@ class _StudySessionScreenState extends State<StudySessionScreen>
   }
 
   /// 학습 완료 다이얼로그
-  void _showCompletionDialog() {
+  Future<void> _showCompletionDialog() async {
+    // 세션 종료 처리
+    await _endSession();
+
+    if (!mounted) return;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -190,6 +232,35 @@ class _StudySessionScreenState extends State<StudySessionScreen>
         ],
       ),
     );
+  }
+
+  /// 세션 종료 처리
+  Future<void> _endSession() async {
+    if (_sessionId == null) return;
+
+    try {
+      _timer?.cancel();
+
+      // 학습 후 통계 가져오기
+      final afterStats = await ApiService.fetchWordBookStatistics(widget.wordBook.id);
+
+      print('✅ 세션 종료 시작: sessionId=$_sessionId');
+      print('난이도 변화: HARD ${_beforeHardCount}→${afterStats.hardCount}, '
+            'NORMAL ${_beforeNormalCount}→${afterStats.normalCount}, '
+            'EASY ${_beforeEasyCount}→${afterStats.easyCount}');
+
+      // 세션 종료 API 호출 (백엔드에서 시간 자동 계산)
+      await ApiService.endWordBookSession(
+        sessionId: _sessionId!,
+        hardCount: afterStats.hardCount,
+        normalCount: afterStats.normalCount,
+        easyCount: afterStats.easyCount,
+      );
+
+      print('✅ 세션 종료 완료');
+    } catch (e) {
+      print('❌ 세션 종료 실패: $e');
+    }
   }
 
   /// Duration을 "MM:SS" 형식으로 변환
@@ -287,9 +358,14 @@ class _StudySessionScreenState extends State<StudySessionScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(context); // 다이얼로그 닫기
-              Navigator.pop(context); // 학습 화면 닫기
+            onPressed: () async {
+              // 세션 종료 처리
+              await _endSession();
+              
+              if (mounted) {
+                Navigator.pop(context); // 다이얼로그 닫기
+                Navigator.pop(context); // 학습 화면 닫기
+              }
             },
             child: const Text('확인'),
           ),
@@ -371,12 +447,18 @@ class _StudySessionScreenState extends State<StudySessionScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
+    return WillPopScope(
+      onWillPop: () async {
+        // 뒤로가기 버튼 클릭 시 세션 종료 확인
+        await _showExitDialog();
+        return false; // 자동으로 pop하지 않음 (다이얼로그에서 처리)
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          automaticallyImplyLeading: false,
         title: Row(
           children: [
             // 타이머 표시
@@ -417,11 +499,12 @@ class _StudySessionScreenState extends State<StudySessionScreen>
           const SizedBox(width: 8),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _currentCard == null
-              ? const Center(child: Text('카드가 없습니다'))
-              : _buildStudyContent(),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _currentCard == null
+                ? const Center(child: Text('카드가 없습니다'))
+                : _buildStudyContent(),
+      ),
     );
   }
 
@@ -783,3 +866,4 @@ class _StudySessionScreenState extends State<StudySessionScreen>
     );
   }
 }
+

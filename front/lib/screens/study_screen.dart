@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/wordbook.dart';
 import '../models/card.dart' as model;
+import '../services/api_service.dart';
+import '../services/auth_service.dart';
 
 /// 학습 화면
 /// 카드의 앞면(질문)과 뒷면(답+난이도 선택)을 보여주는 화면
@@ -22,10 +24,123 @@ class _StudyScreenState extends State<StudyScreen> {
   int _currentIndex = 0;
   bool _showAnswer = false; // 앞면(false) vs 뒷면(true)
   final TextEditingController _answerController = TextEditingController();
+  
+  // 세션 관련
+  int? _sessionId;
+  DateTime? _startTime;
+  int _easyCount = 0;
+  int _normalCount = 0;
+  int _hardCount = 0;
+  Future<void>? _sessionStartFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionStartFuture = _startSession();
+  }
+
+  Future<void> _startSession() async {
+    try {
+      print('학습 세션 시작 요청...');
+      final authService = await AuthService.getInstance();
+      final userId = authService.currentUserId;
+      
+      // 현재 카드들의 난이도 분포 계산
+      int initialHard = 0;
+      int initialNormal = 0;
+      int initialEasy = 0;
+      
+      for (var card in widget.cards) {
+        if (card.difficulty == model.CardDifficulty.HARD) {
+          initialHard++;
+        } else if (card.difficulty == model.CardDifficulty.NORMAL) {
+          initialNormal++;
+        } else if (card.difficulty == model.CardDifficulty.EASY) {
+          initialEasy++;
+        }
+      }
+      
+      print('초기 난이도 분포 - 어려움: $initialHard, 보통: $initialNormal, 쉬움: $initialEasy');
+      
+      final session = await ApiService.startWordBookSession(
+        userId: userId,
+        wordBookId: widget.wordBook.id,
+        initialHardCount: initialHard,
+        initialNormalCount: initialNormal,
+        initialEasyCount: initialEasy,
+      );
+      
+      setState(() {
+        _sessionId = session.id;
+        _startTime = DateTime.now();
+      });
+      print('학습 세션 시작 성공: ID=${session.id}');
+    } catch (e) {
+      print('세션 시작 실패: $e');
+    }
+  }
+
+  Future<void> _endSession() async {
+    print('학습 세션 종료 시도...');
+    
+    // 세션 시작이 완료될 때까지 대기
+    if (_sessionStartFuture != null) {
+      await _sessionStartFuture;
+    }
+
+    if (_sessionId == null || _startTime == null) {
+      print('세션 ID 또는 시작 시간이 없어 종료할 수 없습니다.');
+      return;
+    }
+
+    try {
+      // 최종 난이도 분포 계산
+      // 백엔드는 "전체 카드의 현재 난이도 분포"를 기대하므로 API에서 다시 조회
+      final cards = await ApiService.fetchCards(widget.wordBook.id);
+      
+      int finalHard = 0;
+      int finalNormal = 0;
+      int finalEasy = 0;
+      
+      for (var card in cards) {
+        if (card.difficulty == model.CardDifficulty.HARD) {
+          finalHard++;
+        } else if (card.difficulty == model.CardDifficulty.NORMAL) {
+          finalNormal++;
+        } else if (card.difficulty == model.CardDifficulty.EASY) {
+          finalEasy++;
+        }
+      }
+
+      print('학습 세션 종료 요청');
+      print('최종 난이도 분포 - 어려움: $finalHard, 보통: $finalNormal, 쉬움: $finalEasy');
+
+      final result = await ApiService.endWordBookSession(
+        sessionId: _sessionId!,
+        hardCount: finalHard,
+        normalCount: finalNormal,
+        easyCount: finalEasy,
+      );
+      print('✅ 학습 세션 종료 성공: ID=${result.id}');
+      
+      // 세션 ID 초기화하여 중복 종료 방지
+      _sessionId = null;
+      _startTime = null;
+    } catch (e, stackTrace) {
+      print('❌ 세션 종료 실패: $e');
+      print('Stack trace: $stackTrace');
+    }
+  }
 
   @override
   void dispose() {
     _answerController.dispose();
+    // 화면을 나갈 때도 세션 종료 시도 (비동기로 실행하되 대기하지 않음)
+    if (_sessionId != null && _startTime != null) {
+      _endSession().catchError((e) {
+        print('dispose에서 세션 종료 실패: $e');
+      });
+    }
     super.dispose();
   }
 
@@ -491,8 +606,29 @@ class _StudyScreenState extends State<StudyScreen> {
   }
 
   /// 난이도 선택 처리
-  void _selectDifficulty(model.CardDifficulty difficulty) {
-    // TODO: 서버에 난이도 업데이트 요청
+  void _selectDifficulty(model.CardDifficulty difficulty) async {
+    // 난이도별 카운트 증가
+    if (difficulty == model.CardDifficulty.EASY) {
+      _easyCount++;
+      print('✅ 쉬움 선택 (총 $_easyCount)');
+    } else if (difficulty == model.CardDifficulty.NORMAL) {
+      _normalCount++;
+      print('✅ 보통 선택 (총 $_normalCount)');
+    } else if (difficulty == model.CardDifficulty.HARD) {
+      _hardCount++;
+      print('✅ 어려움 선택 (총 $_hardCount)');
+    }
+
+    // API 호출 (난이도 업데이트)
+    try {
+      await ApiService.reviewCard(
+        cardId: widget.cards[_currentIndex].id,
+        difficulty: difficulty,
+      );
+    } catch (e) {
+      print('난이도 업데이트 실패: $e');
+      // 실패해도 학습은 계속 진행
+    }
 
     // 다음 카드로 이동
     setState(() {
@@ -500,6 +636,13 @@ class _StudyScreenState extends State<StudyScreen> {
       _showAnswer = false;
       _answerController.clear();
     });
+
+    // 모든 카드를 학습했으면 세션 종료
+    if (_currentIndex >= widget.cards.length) {
+      print('🎯 모든 카드 학습 완료! 세션 종료 시작...');
+      print('최종 카운트 - 쉬움: $_easyCount, 보통: $_normalCount, 어려움: $_hardCount');
+      await _endSession();
+    }
 
     // 스낵바로 피드백
     final difficultyLabel = difficulty == model.CardDifficulty.EASY
@@ -574,8 +717,14 @@ class _StudyScreenState extends State<StudyScreen> {
 
                 // 버튼들
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
+                  onPressed: () async {
+                    // 세션 종료를 기다렸다가 화면 닫기
+                    if (_sessionId != null && _startTime != null) {
+                      await _endSession();
+                    }
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
@@ -601,7 +750,13 @@ class _StudyScreenState extends State<StudyScreen> {
                       _currentIndex = 0;
                       _showAnswer = false;
                       _answerController.clear();
+                      // 카운트 초기화
+                      _easyCount = 0;
+                      _normalCount = 0;
+                      _hardCount = 0;
                     });
+                    // 새 세션 시작
+                    _startSession();
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
