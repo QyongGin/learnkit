@@ -1,6 +1,7 @@
 package com.learnkit.backend.exception;
 
 import com.learnkit.backend.exception.custom.CardNotFoundException;
+import com.learnkit.backend.exception.custom.GoalNotFoundException;
 import com.learnkit.backend.exception.custom.GoalStudySessionNotFoundException;
 import com.learnkit.backend.exception.custom.ScheduleNotFoundException;
 import com.learnkit.backend.exception.custom.UserNotFoundException;
@@ -11,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.LocalDateTime;
-
 
 // 역할:
 // - 전역 예외 처리기: 애플리케이션 전체에서 발생하는 예외를 한 곳에서 처리
@@ -36,9 +36,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleScheduleNotFound(ScheduleNotFoundException e) {
 
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),   // 404 상태코드
-                e.getMessage(),                 // 예외에서 가져온 메시지
-                LocalDateTime.now().toString()  // 현재 시간을 문자열로 변환
+                HttpStatus.NOT_FOUND.value(), // 404 상태코드
+                e.getMessage(), // 예외에서 가져온 메시지
+                LocalDateTime.now().toString() // 현재 시간을 문자열로 변환
         );
 
         // HTTP 404 상태코드와 함께 ErrorResponse를 JSON으로 반환
@@ -52,9 +52,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException e) {
 
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),   // 404 상태코드
-                e.getMessage(),                 // 예외에서 가져온 메시지
-                LocalDateTime.now().toString()  // 현재 시간을 문자열로 변환
+                HttpStatus.NOT_FOUND.value(), // 404 상태코드
+                e.getMessage(), // 예외에서 가져온 메시지
+                LocalDateTime.now().toString() // 현재 시간을 문자열로 변환
         );
 
         // HTTP 404 상태코드와 함께 ErrorResponse를 JSON으로 반환
@@ -68,9 +68,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleWordBookNotFound(WordBookNotFoundException e) {
 
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),   // 404 상태코드
-                e.getMessage(),                 // 예외에서 가져온 메시지
-                LocalDateTime.now().toString()  // 현재 시간을 문자열로 변환
+                HttpStatus.NOT_FOUND.value(), // 404 상태코드
+                e.getMessage(), // 예외에서 가져온 메시지
+                LocalDateTime.now().toString() // 현재 시간을 문자열로 변환
         );
 
         // HTTP 404 상태코드와 함께 ErrorResponse를 JSON으로 반환
@@ -86,8 +86,21 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
                 e.getMessage(),
-                LocalDateTime.now().toString()
-        );
+                LocalDateTime.now().toString());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * 목표를 찾지 못할 때 발생하는 예외를 처리
+     */
+    @ExceptionHandler(GoalNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleGoalNotFound(GoalNotFoundException e) {
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                e.getMessage(),
+                LocalDateTime.now().toString());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
@@ -101,8 +114,7 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
                 e.getMessage(),
-                LocalDateTime.now().toString()
-        );
+                LocalDateTime.now().toString());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
@@ -116,9 +128,9 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
                 e.getMessage(),
-                LocalDateTime.now().toString()
-        );
+                LocalDateTime.now().toString());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
+
 }

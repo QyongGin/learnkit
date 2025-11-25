@@ -26,21 +26,24 @@ public class GoalStudySession extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "goal_id")
-    private Goal goal;  // nullable (목표 없이 학습 가능)
+    private Goal goal; // nullable (목표 없이 학습 가능)
 
     @Column(nullable = false)
-    private LocalDateTime startedAt;    // 시작 시간
+    private LocalDateTime startedAt; // 시작 시간
 
-    private LocalDateTime endedAt;      // 종료 시간 (NULL = 진행 중)
-
-    @Column(nullable = false)
-    private int achievedAmount = 0;     // 이번 세션 달성량
+    private LocalDateTime endedAt; // 종료 시간 (NULL = 진행 중)
 
     @Column(nullable = false)
-    private int pomoCount = 0;          // 완료한 포모도로 수
+    private int achievedAmount = 0; // 이번 세션 달성량
+
+    @Column(nullable = false)
+    private int durationMinutes = 0; // 학습 시간 (분)
+
+    @Column(nullable = false)
+    private int pomoCount = 0; // 완료한 포모도로 수
 
     @Column(columnDefinition = "TEXT")
-    private String note;                // 메모
+    private String note; // 메모
 
     // 생성자
     public GoalStudySession(User user, Goal goal) {
@@ -58,6 +61,7 @@ public class GoalStudySession extends BaseTimeEntity {
         this.endedAt = LocalDateTime.now();
         this.achievedAmount = achievedAmount;
         this.pomoCount = pomoCount;
+        this.durationMinutes = pomoCount * 25; // 시간 계산
         this.note = note;
     }
 
@@ -70,6 +74,7 @@ public class GoalStudySession extends BaseTimeEntity {
             throw new IllegalStateException("종료된 세션은 업데이트할 수 없습니다.");
         }
         this.pomoCount = pomoCount;
+        this.durationMinutes = pomoCount * 25; // 시간 계산
     }
 
     /**
@@ -77,13 +82,5 @@ public class GoalStudySession extends BaseTimeEntity {
      */
     public boolean isInProgress() {
         return this.endedAt == null;
-    }
-
-    /**
-     * 학습 시간 계산 (분)
-     * pomoCount * 25분
-     */
-    public int getDurationMinutes() {
-        return this.pomoCount * 25;
     }
 }
