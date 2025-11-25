@@ -722,53 +722,109 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          '포모도로 타이머',
-          style: TextStyle(
-            color: Color(0xFF191F28),
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
+    return PopScope(
+      canPop: _currentSession == null, // 세션 없으면 바로 뒤로가기 가능
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _currentSession != null) {
+          _showExitConfirmDialog();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Color(0xFF191F28)),
+            onPressed: () {
+              if (_currentSession != null) {
+                _showExitConfirmDialog();
+              } else {
+                Navigator.pop(context);
+              }
+            },
           ),
+          title: const Text(
+            '포모도로 타이머',
+            style: TextStyle(
+              color: Color(0xFF191F28),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+            ),
+          ),
+          actions: [
+            if (_currentSession != null)
+              IconButton(
+                icon: const Icon(Icons.stop_circle_outlined, color: Colors.red),
+                onPressed: _endSession,
+                tooltip: '학습 종료',
+              ),
+          ],
+        ),
+        body: _isLoadingGoals
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    // 목표 선택
+                    _buildGoalSelector(),
+                    const SizedBox(height: 32),
+
+                    // 타이머
+                    _buildTimer(),
+                    const SizedBox(height: 32),
+
+                    // 세트 정보
+                    _buildSessionInfo(),
+                    const SizedBox(height: 32),
+
+                    // 시작/정지 버튼
+                    _buildControlButton(),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  /// 뒤로가기/나가기 확인 다이얼로그
+  void _showExitConfirmDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text(
+          '학습 종료',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          '현재 $_totalPomodoros포모 진행 중입니다.\n어떻게 하시겠어요?',
         ),
         actions: [
-          if (_currentSession != null)
-            IconButton(
-              icon: const Icon(Icons.stop_circle_outlined, color: Colors.red),
-              onPressed: _endSession,
-              tooltip: '학습 종료',
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context), // 다이얼로그만 닫기
+            child: const Text('계속 학습'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // 다이얼로그 닫기
+              _endSession(); // 기록 저장 후 종료
+            },
+            child: const Text('기록 저장 후 종료'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context); // 다이얼로그 닫기
+              Navigator.pop(context); // 화면 나가기 (세션은 서버에 유지)
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            child: const Text('나중에 이어하기'),
+          ),
         ],
       ),
-      body: _isLoadingGoals
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  // 목표 선택
-                  _buildGoalSelector(),
-                  const SizedBox(height: 32),
-
-                  // 타이머
-                  _buildTimer(),
-                  const SizedBox(height: 32),
-
-                  // 세트 정보
-                  _buildSessionInfo(),
-                  const SizedBox(height: 32),
-
-                  // 시작/정지 버튼
-                  _buildControlButton(),
-                ],
-              ),
-            ),
     );
   }
 
