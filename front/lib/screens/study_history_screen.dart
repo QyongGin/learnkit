@@ -132,6 +132,7 @@ class _StudyHistoryScreenState extends State<StudyHistoryScreen> {
     final date = DateFormat('yyyy.MM.dd').format(session.startedAt);
     final time = DateFormat('HH:mm').format(session.startedAt);
     final isToday = DateFormat('yyyy.MM.dd').format(DateTime.now()) == date;
+    final isWordBook = session.type == 'WORDBOOK';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -154,7 +155,7 @@ class _StudyHistoryScreenState extends State<StudyHistoryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 헤더: 날짜 + 목표
+            // 헤더: 날짜 + 목표/단어장
             Row(
               children: [
                 // 날짜 뱃지
@@ -195,8 +196,40 @@ class _StudyHistoryScreenState extends State<StudyHistoryScreen> {
                 ),
                 const Spacer(),
 
-                // 목표 뱃지
-                if (session.goalTitle != null)
+                // 목표/단어장 뱃지
+                if (isWordBook && session.wordBookTitle != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4A90E2).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.book,
+                          size: 14,
+                          color: Color(0xFF4A90E2),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          session.wordBookTitle!,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF4A90E2),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  )
+                else if (!isWordBook && session.goalTitle != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -232,47 +265,136 @@ class _StudyHistoryScreenState extends State<StudyHistoryScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 학습 통계 (3개 열)
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    icon: Icons.timer_outlined,
-                    label: '학습 시간',
-                    value: '${session.durationMinutes}분',
-                    color: const Color(0xFF6366F1),
-                  ),
+            // 학습 통계
+            if (isWordBook) ...[
+              // 학습 시간 (단독 표시)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.timer_outlined, color: Color(0xFF6366F1), size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      '학습 시간: ${session.durationMinutes}분',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6366F1),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // 난이도 변화
+              if (session.startHardCount != null && session.endHardCount != null)
                 Container(
-                  width: 1,
-                  height: 40,
-                  color: Colors.grey.shade200,
-                  margin: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    icon: Icons.local_fire_department_outlined,
-                    label: '포모도로',
-                    value: '${session.pomoCount}세트',
-                    color: const Color(0xFFFF6B6B),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.trending_up, size: 18, color: Color(0xFF4A90E2)),
+                          const SizedBox(width: 8),
+                          const Text(
+                            '난이도 변화',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF191F28),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildDifficultyChange(
+                            '어려움',
+                            session.startHardCount!,
+                            session.endHardCount!,
+                            Colors.red.shade400,
+                          ),
+                          _buildDifficultyChange(
+                            '보통',
+                            session.startNormalCount!,
+                            session.endNormalCount!,
+                            Colors.orange.shade400,
+                          ),
+                          _buildDifficultyChange(
+                            '쉬움',
+                            session.startEasyCount!,
+                            session.endEasyCount!,
+                            Colors.green.shade400,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: Colors.grey.shade200,
-                  margin: const EdgeInsets.symmetric(horizontal: 12),
+            ]
+            else
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
-                Expanded(
-                  child: _buildStatItem(
-                    icon: Icons.check_circle_outline,
-                    label: '달성량',
-                    value: '${session.achievedAmount}',
-                    color: const Color(0xFF20C997),
-                  ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatItem(
+                        icon: Icons.timer_outlined,
+                        label: '학습 시간',
+                        value: '${session.durationMinutes}분',
+                        color: const Color(0xFF6366F1),
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: Colors.grey.shade300,
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    Expanded(
+                      child: _buildStatItem(
+                        icon: Icons.local_fire_department_outlined,
+                        label: '포모도로',
+                        value: '${session.pomoCount}세트',
+                        color: const Color(0xFFFF6B6B),
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: Colors.grey.shade300,
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    Expanded(
+                      child: _buildStatItem(
+                        icon: Icons.check_circle_outline,
+                        label: '달성량',
+                        value: '${session.achievedAmount}',
+                        color: const Color(0xFF20C997),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
 
             // 메모
             if (session.note != null && session.note!.isNotEmpty) ...[
@@ -340,6 +462,76 @@ class _StudyHistoryScreenState extends State<StudyHistoryScreen> {
           style: TextStyle(
             fontSize: 11,
             color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDifficultyChange(String label, int start, int end, Color color) {
+    final change = end - start;
+    final changeText = change > 0 ? '+$change' : change < 0 ? '$change' : '±0';
+    final isImprovement = (label == '어려움' && change < 0) || (label == '쉬움' && change > 0);
+    
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              '$start',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+                decoration: TextDecoration.lineThrough,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_forward, size: 14, color: Colors.grey),
+            const SizedBox(width: 4),
+            Text(
+              '$end',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isImprovement 
+                ? Colors.green.shade50 
+                : change == 0 
+                    ? Colors.grey.shade100 
+                    : Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            changeText,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isImprovement 
+                  ? Colors.green.shade700 
+                  : change == 0 
+                      ? Colors.grey.shade600 
+                      : Colors.orange.shade700,
+            ),
           ),
         ),
       ],
