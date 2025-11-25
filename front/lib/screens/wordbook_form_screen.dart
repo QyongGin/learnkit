@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/wordbook.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 
 /// 단어장 생성/수정 화면 (빈도 비율 방식)
 class WordBookFormScreen extends StatefulWidget {
@@ -23,12 +24,13 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
   int _normalRatio = 3;
   int _hardRatio = 6;
 
-  final int _userId = 1; // TODO: 실제 로그인한 사용자 ID로 변경
+  int _userId = 1;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
+    _initAuth();
     // 수정 모드인 경우 기존 데이터로 초기화
     if (widget.wordBook != null) {
       _titleController.text = widget.wordBook!.title;
@@ -37,6 +39,13 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
       _normalRatio = widget.wordBook!.normalFrequencyRatio;
       _hardRatio = widget.wordBook!.hardFrequencyRatio;
     }
+  }
+
+  Future<void> _initAuth() async {
+    final authService = await AuthService.getInstance();
+    setState(() {
+      _userId = authService.currentUserId;
+    });
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/wordbook.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/wordbook_card.dart';
 import 'wordbook_form_screen.dart';
 import 'wordbook_detail_screen.dart';
@@ -17,11 +18,19 @@ class _WordBookListScreenState extends State<WordBookListScreen> {
   List<WordBook> _wordBooks = [];
   bool _isLoading = true;
   String? _errorMessage;
-  final int _userId = 1; // TODO: 실제 로그인한 사용자 ID로 변경
+  int _userId = 1;
 
   @override
   void initState() {
     super.initState();
+    _initAuth();
+  }
+
+  Future<void> _initAuth() async {
+    final authService = await AuthService.getInstance();
+    setState(() {
+      _userId = authService.currentUserId;
+    });
     _loadWordBooks();
   }
 

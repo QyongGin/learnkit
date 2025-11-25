@@ -7,6 +7,7 @@ import '../models/card.dart';
 import '../models/user.dart';
 import '../models/goal.dart';
 import '../models/study_session.dart';
+import '../models/weekly_stats.dart' as ws;
 import '../config/api_config.dart';
 
 class ApiService {
@@ -215,6 +216,26 @@ class ApiService {
       // 서버 연결 실패 시 빈 리스트 반환
       print('단어장 로드 실패: $e');
       return [];
+    }
+  }
+
+  /// 단일 단어장 조회
+  static Future<WordBook?> fetchWordBook(int wordBookId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/wordbooks/$wordBookId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        return WordBook.fromJson(data);
+      } else {
+        throw Exception('Failed to load wordbook: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('단어장 조회 실패: $e');
+      return null;
     }
   }
 
@@ -689,7 +710,7 @@ class ApiService {
   }
 
   // ========================================
-  // StudySession API (포모도로 타이머)
+  // GoalStudySession API (포모도로 타이머)
   // ========================================
 
   /// 포모도로 학습 세션 시작
@@ -701,7 +722,7 @@ class ApiService {
     if (goalId != null) body['goalId'] = goalId;
 
     final response = await http.post(
-      Uri.parse('$baseUrl/users/$userId/study-sessions'),
+      Uri.parse('$baseUrl/users/$userId/goal-study-sessions'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode(body),
     );
@@ -730,7 +751,7 @@ class ApiService {
     if (note != null && note.isNotEmpty) body['note'] = note;
 
     final response = await http.patch(
-      Uri.parse('$baseUrl/study-sessions/$sessionId/end'),
+      Uri.parse('$baseUrl/goal-study-sessions/$sessionId/end'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode(body),
     );
@@ -747,7 +768,7 @@ class ApiService {
   static Future<StudySession?> fetchActivePomodoroSession(int userId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/users/$userId/study-sessions/active'),
+        Uri.parse('$baseUrl/users/$userId/goal-study-sessions/active'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -769,7 +790,7 @@ class ApiService {
   /// 특정 목표의 학습 세션 목록 조회
   static Future<List<StudySession>> fetchSessionsByGoal(int goalId) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/study-sessions?goalId=$goalId'),
+      Uri.parse('$baseUrl/goal-study-sessions?goalId=$goalId'),
       headers: {'Content-Type': 'application/json'},
     );
 
@@ -781,18 +802,42 @@ class ApiService {
     }
   }
 
-  /// 사용자의 모든 학습 세션 조회
+  /// 사용자의 모든 학습 세션 조회 (목표 학습 + 단어장 학습)
   static Future<List<StudySession>> fetchUserSessions(int userId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/users/$userId/study-sessions'),
-      headers: {'Content-Type': 'application/json'},
-    );
+    try {
+      // 1. 목표 학습 세션 조회
+      final goalResponse = await http.get(
+        Uri.parse('$baseUrl/users/$userId/goal-study-sessions'),
+        headers: {'Content-Type': 'application/json'},
+      );
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
-      return data.map((json) => StudySession.fromJson(json)).toList();
-    } else {
-      throw Exception('세션 목록을 불러오는데 실패했습니다: ${response.statusCode}');
+      // 2. 단어장 학습 세션 조회
+      final wordBookResponse = await http.get(
+        Uri.parse('$baseUrl/users/$userId/wordbook-study-sessions'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      List<StudySession> allSessions = [];
+
+      // 목표 학습 세션 파싱
+      if (goalResponse.statusCode == 200) {
+        final List<dynamic> goalData = json.decode(utf8.decode(goalResponse.bodyBytes));
+        allSessions.addAll(goalData.map((json) => StudySession.fromJson(json)));
+      }
+
+      // 단어장 학습 세션 파싱
+      if (wordBookResponse.statusCode == 200) {
+        final List<dynamic> wordBookData = json.decode(utf8.decode(wordBookResponse.bodyBytes));
+        allSessions.addAll(wordBookData.map((json) => StudySession.fromJson(json)));
+      }
+
+      // 최신순 정렬
+      allSessions.sort((a, b) => b.startedAt.compareTo(a.startedAt));
+
+      return allSessions;
+    } catch (e) {
+      print('세션 목록 로드 중 오류: $e');
+      throw Exception('세션 목록을 불러오는데 실패했습니다: $e');
     }
   }
 
@@ -803,7 +848,7 @@ class ApiService {
     required int pomoCount,
   }) async {
     final response = await http.patch(
-      Uri.parse('$baseUrl/study-sessions/$sessionId/pomo-count?pomoCount=$pomoCount'),
+      Uri.parse('$baseUrl/goal-study-sessions/$sessionId/pomo-count?pomoCount=$pomoCount'),
       headers: {'Content-Type': 'application/json'},
     );
 
@@ -815,6 +860,211 @@ class ApiService {
     }
   }
 
+  // ========================================
+  // WordBookStudySession API (단어장 학습)
+  // ========================================
+
+  /// 단어장 학습 세션 시작
+  static Future<StudySession> startWordBookSession({
+    required int userId,
+    required int wordBookId,
+    required int initialHardCount,
+    required int initialNormalCount,
+    required int initialEasyCount,
+  }) async {
+    final Map<String, dynamic> body = {
+      'wordBookId': wordBookId,
+      'hardCount': initialHardCount,
+      'normalCount': initialNormalCount,
+      'easyCount': initialEasyCount,
+    };
+
+    print('API 요청: 단어장 세션 시작 (userId=$userId, wordBookId=$wordBookId)');
+    print('초기 난이도 분포: 어려움=$initialHardCount, 보통=$initialNormalCount, 쉬움=$initialEasyCount');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/$userId/wordbook-study-sessions'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
+
+    print('API 응답: ${response.statusCode} ${response.body}');
+
+    if (response.statusCode == 201) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return StudySession.fromJson(data);
+    } else {
+      throw Exception('단어장 학습 세션 시작 실패: ${response.statusCode}');
+    }
+  }
+
+  /// 진행 중인 단어장 학습 세션 조회
+  static Future<StudySession?> fetchActiveWordBookSession(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/$userId/wordbook-study-sessions/active'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        return StudySession.fromJson(data);
+      } else if (response.statusCode == 404) {
+        // 진행 중인 세션 없음
+        return null;
+      } else {
+        throw Exception('진행 중인 단어장 세션 조회 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('진행 중인 단어장 세션 조회 중 에러: $e');
+      return null;
+    }
+  }
+
+  /// 단어장 학습 세션 종료
+  /// 단어장 학습 세션 종료
+  /// 
+  /// 백엔드에서 durationMinutes는 자동 계산되므로 보내지 않음
+  /// hardCount, normalCount, easyCount만 최종 난이도 분포로 전달
+  static Future<StudySession> endWordBookSession({
+    required int sessionId,
+    required int hardCount,    // 어려움
+    required int normalCount,  // 보통
+    required int easyCount,    // 쉬움
+  }) async {
+    final Map<String, dynamic> body = {
+      'hardCount': hardCount,
+      'normalCount': normalCount,
+      'easyCount': easyCount,
+    };
+
+    print('API 요청: 단어장 세션 종료 (sessionId=$sessionId)');
+    print('Body: ${json.encode(body)}');
+
+    final response = await http.patch(
+      Uri.parse('$baseUrl/wordbook-study-sessions/$sessionId/end'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
+
+    print('API 응답: ${response.statusCode} ${response.body}');
+
+    if (response.statusCode == 200) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return StudySession.fromJson(data);
+    } else {
+      throw Exception('단어장 학습 세션 종료 실패: ${response.statusCode}');
+    }
+  }
+
+  /// 단어장 학습 세션 삭제 (미완료 세션 제거용)
+  static Future<void> deleteWordBookSession(int sessionId) async {
+    print('API 요청: 단어장 세션 삭제 (sessionId=$sessionId)');
+
+    final response = await http.delete(
+      Uri.parse('$baseUrl/wordbook-study-sessions/$sessionId'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    print('API 응답: ${response.statusCode}');
+
+    if (response.statusCode == 204 || response.statusCode == 200) {
+      // 성공
+      return;
+    } else {
+      throw Exception('단어장 학습 세션 삭제 실패: ${response.statusCode}');
+    }
+  }
+
+  /// 앱 실행 시간 기록
+  ///
+  /// 로컬 알림 스케줄링을 위한 사용자의 앱 사용 패턴 분석용
+  /// 앱이 시작될 때마다 호출되어 시간 기록
+  ///
+  /// 매개변수:
+  /// - userId: 사용자 ID
+  ///
+  /// 반환값: 없음 (204 No Content)
+  static Future<void> recordAppLaunch(int userId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/users/$userId/app-launches'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 204 || response.statusCode == 200 || response.statusCode == 201) {
+        print('✅ 앱 실행 시간 기록 성공');
+      } else {
+        throw Exception('앱 실행 기록 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('앱 실행 기록 API 오류: $e');
+      // 에러가 발생해도 앱 실행은 계속 진행
+    }
+  }
+
+  /// 사용자의 주 사용 시간대 조회
+  ///
+  /// 백엔드에서 app_launch 데이터를 분석하여
+  /// 사용자가 가장 많이 앱을 실행하는 시간대(시)를 반환
+  ///
+  /// 매개변수:
+  /// - userId: 사용자 ID
+  ///
+  /// 반환값:
+  /// - 가장 많이 사용하는 시간 (0-23, 예: 19 → 오후 7시)
+  static Future<int> fetchPeakHour(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/$userId/peak-hours'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        // peakHour 필드 추출
+        return data['peakHour'] as int;
+      } else {
+        throw Exception('주 사용 시간대 조회 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('주 사용 시간대 API 오류: $e');
+      // 기본값: 오후 7시
+      return 19;
+    }
+  }
+
+  /// 주간 통계 조회
+  static Future<ws.WeeklyStats?> fetchWeeklyStats(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/$userId/weekly-stats'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        return ws.WeeklyStats.fromJson(data);
+      } else {
+        throw Exception('주간 통계 조회 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('주간 통계 API 오류: $e');
+      return null;
+    }
+  }
+
+  /// 주간 통계 기준선 생성 (앱 실행 시 호출)
+  static Future<void> createWeeklyBaseline(int userId) async {
+    try {
+      await http.post(
+        Uri.parse('$baseUrl/users/$userId/weekly-stats/baseline'),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      print('주간 통계 기준선 생성 오류: $e');
+    }
+  }
 }
 
 /// 학습 세션 시작 응답
