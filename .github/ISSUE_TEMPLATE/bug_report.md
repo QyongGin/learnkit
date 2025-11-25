@@ -1,8 +1,6 @@
 ---
 name: 🐛 Bug Report
 about: 버그를 제보해주세요.
-title: "[Bug] "
-labels: "🐛 Bug"
 assignees: ''
 ---
 
