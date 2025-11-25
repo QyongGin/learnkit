@@ -99,58 +99,80 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     await _resumeSessionIfNeeded(); // 2단계: 목표 로드 완료 후 세션 재개 및 목표 자동 선택
   }
 
-  /// 세션 이어하기 (HomeScreen에서 전달받은 경우)
+  /// 세션 이어하기 및 자동 복구
+  /// 1. 서버에 진행 중인 세션이 있는지 확인
+  /// 2. 있다면 해당 세션으로 상태 복구
+  /// 3. 없다면 (그리고 위젯 파라미터로 전달받은 게 있다면) 파라미터 기반으로 복구 시도
   Future<void> _resumeSessionIfNeeded() async {
-    if (widget.resumeSessionId != null && widget.resumePomoCount != null) {
-      try {
-        // API에서 진행 중인 세션 가져오기
-        final session = await ApiService.fetchActivePomodoroSession(_userId);
+    try {
+      // 1. 항상 서버에서 진행 중인 세션 확인 (자동 이어하기)
+      final session = await ApiService.fetchActivePomodoroSession(_userId);
 
-        if (session != null) {
-          setState(() {
-            _currentSession = session;
-            _totalPomodoros = session.pomoCount;
-            _completedSets = session.pomoCount;
-
-            // 이어하기 시 자동으로 "폰 뒤집기 대기" 상태로 설정
-            _waitingForFlip = true;
-
-            // 목표가 있다면 자동으로 선택
-            if (session.goalId != null && _goals.isNotEmpty) {
-              try {
-                _selectedGoal = _goals.firstWhere(
-                  (goal) => goal.id == session.goalId,
-                );
-              } catch (e) {
-                // 목표를 찾지 못한 경우 선택하지 않음
-                print('목표를 찾을 수 없습니다: ${session.goalId}');
-              }
-            }
-          });
-        }
-      } catch (e) {
-        // API 실패 시 기본 데이터로 설정
-        setState(() {
-          _currentSession = StudySession(
-            id: widget.resumeSessionId!,
-            goalId: null,
-            goalTitle: null,
-            startedAt: DateTime.now(),
-            endedAt: null,
-            achievedAmount: 0,
-            durationMinutes: 0,
-            pomoCount: widget.resumePomoCount!,
-            note: null,
-            inProgress: true,
+      if (session != null) {
+        _restoreSessionState(session);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('진행 중인 학습 세션을 불러왔습니다.')),
           );
-          _totalPomodoros = widget.resumePomoCount!;
-          _completedSets = widget.resumePomoCount!;
-
-          // 이어하기 시 자동으로 "폰 뒤집기 대기" 상태로 설정
-          _waitingForFlip = true;
-        });
+        }
+        return;
       }
+    } catch (e) {
+      print('세션 자동 복구 실패: $e');
     }
+
+    // 2. 서버에 없지만, 홈 화면에서 명시적으로 이어하기를 누른 경우 (오프라인 등 예외 상황)
+    if (widget.resumeSessionId != null && widget.resumePomoCount != null) {
+      setState(() {
+        _currentSession = StudySession(
+          id: widget.resumeSessionId!,
+          goalId: null,
+          goalTitle: null,
+          startedAt: DateTime.now(),
+          endedAt: null,
+          achievedAmount: 0,
+          durationMinutes: 0,
+          pomoCount: widget.resumePomoCount!,
+          note: null,
+          inProgress: true,
+        );
+        _totalPomodoros = widget.resumePomoCount!;
+        _completedSets = widget.resumePomoCount!;
+        _waitingForFlip = true;
+      });
+    }
+  }
+
+  /// 세션 상태 복구 헬퍼
+  void _restoreSessionState(StudySession session) {
+    // 센서 설정 확인
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
+    final bool sensorEnabled = settings.isSensorEnabled;
+
+    setState(() {
+      _currentSession = session;
+      _totalPomodoros = session.pomoCount;
+      _completedSets = session.pomoCount;
+
+      // 센서 설정에 따라 대기 상태 결정
+      if (sensorEnabled) {
+        _waitingForFlip = true;
+      } else {
+        _waitingForFlip = false;
+        _isRunning = false; // 일시정지 상태로 시작
+      }
+
+      // 목표가 있다면 자동으로 선택
+      if (session.goalId != null && _goals.isNotEmpty) {
+        try {
+          _selectedGoal = _goals.firstWhere(
+            (goal) => goal.id == session.goalId,
+          );
+        } catch (e) {
+          print('목표를 찾을 수 없습니다: ${session.goalId}');
+        }
+      }
+    });
   }
 
   /// 포모도로 카운트를 서버에 실시간 업데이트
@@ -502,96 +524,28 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         _startBreak(PomodoroState.shortBreak);  // 자동으로 짧은 휴식 시작
       }
     } else {
-      // 휴식 완료 - 폰 뒤집기 대기 상태로 전환
+      // 휴식 완료 - 다음 포모도로 준비
       _vibrate();
-      _showPomodoroPopup('${_totalPomodoros + 1}포모 준비!\n폰을 뒤집으세요');
-      setState(() {
-        _pomodoroState = PomodoroState.focus;
-        _remainingSeconds = FOCUS_MINUTES * 60;
-        _waitingForFlip = true;  // 폰 뒤집기 대기
-      });
+      
+      if (_sensorEnabled) {
+        // 센서 사용 시: 폰 뒤집기 대기
+        _showPomodoroPopup('${_totalPomodoros + 1}포모 준비!\n폰을 뒤집으세요');
+        setState(() {
+          _pomodoroState = PomodoroState.focus;
+          _remainingSeconds = FOCUS_MINUTES * 60;
+          _waitingForFlip = true;  // 폰 뒤집기 대기
+        });
+      } else {
+        // 센서 미사용 시: 버튼 대기
+        _showPomodoroPopup('${_totalPomodoros + 1}포모 준비 완료!');
+        setState(() {
+          _pomodoroState = PomodoroState.focus;
+          _remainingSeconds = FOCUS_MINUTES * 60;
+          _waitingForFlip = false; // 대기 없음
+          _isRunning = false;      // 정지 상태 (사용자가 시작 눌러야 함)
+        });
+      }
     }
-  }
-
-  /// 휴식 시작 다이얼로그
-  void _showBreakDialog(String title, String message, PomodoroState breakState) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(message),
-            const SizedBox(height: 12),
-            Text(
-              '완료한 세트: $_completedSets개',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _endSession();
-            },
-            child: const Text('학습 종료'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _startBreak(breakState);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
-            ),
-            child: const Text('휴식 시작', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 다음 집중 세션 다이얼로그
-  void _showNextFocusDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: const Text('휴식 완료!', style: TextStyle(fontWeight: FontWeight.w700)),
-        content: const Text('다음 집중 세션을 시작하시겠어요?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _endSession();
-            },
-            child: const Text('학습 종료'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _pomodoroState = PomodoroState.focus;
-                _remainingSeconds = FOCUS_MINUTES * 60;
-              });
-              _startTimer();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
-            ),
-            child: const Text('집중 시작', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
   }
 
   /// 휴식 시작
@@ -857,6 +811,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             )
           else
             DropdownButtonFormField<Goal>(
+              isExpanded: true, // 텍스트 오버플로우 방지
               initialValue: _selectedGoal,
               decoration: InputDecoration(
                 border: OutlineInputBorder(
