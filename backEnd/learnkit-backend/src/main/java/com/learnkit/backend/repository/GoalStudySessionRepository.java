@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * GoalStudySession 엔티티의 데이터베이스 접근을 담당하는 Repository
@@ -21,8 +20,9 @@ public interface GoalStudySessionRepository extends JpaRepository<GoalStudySessi
 
     /**
      * 특정 사용자의 진행 중인 세션 조회 (endedAt == null)
+     * 데이터 정합성 문제로 여러 개가 있을 수 있으므로 List로 반환
      */
-    Optional<GoalStudySession> findByUserIdAndEndedAtIsNull(Long userId);
+    List<GoalStudySession> findAllByUserIdAndEndedAtIsNull(Long userId);
 
     /**
      * 특정 목표에 연결된 모든 학습 세션 조회

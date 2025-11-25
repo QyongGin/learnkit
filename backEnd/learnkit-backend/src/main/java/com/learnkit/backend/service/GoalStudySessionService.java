@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,8 +34,8 @@ public class GoalStudySessionService {
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
         // 이미 진행 중인 세션 있는지 확인
-        Optional<GoalStudySession> activeSession = goalStudySessionRepository.findByUserIdAndEndedAtIsNull(userId);
-        if (activeSession.isPresent()) {
+        List<GoalStudySession> activeSessions = goalStudySessionRepository.findAllByUserIdAndEndedAtIsNull(userId);
+        if (!activeSessions.isEmpty()) {
             throw new IllegalStateException("이미 진행 중인 학습 세션이 있습니다.");
         }
 
@@ -67,8 +66,7 @@ public class GoalStudySessionService {
         session.endSession(
                 requestDto.getAchievedAmount(),
                 requestDto.getPomoCount(),
-                requestDto.getNote()
-        );
+                requestDto.getNote());
 
         // Goal 진행도 업데이트 (goal이 있고, 달성량이 0보다 크면)
         if (session.getGoal() != null && requestDto.getAchievedAmount() > 0) {
@@ -92,8 +90,17 @@ public class GoalStudySessionService {
      * 진행 중인 세션 조회
      */
     public GoalStudySessionDto.Response findActiveSession(Long userId) {
-        GoalStudySession session = goalStudySessionRepository.findByUserIdAndEndedAtIsNull(userId)
+        List<GoalStudySession> activeSessions = goalStudySessionRepository.findAllByUserIdAndEndedAtIsNull(userId);
+
+        if (activeSessions.isEmpty()) {
+            throw new GoalStudySessionNotFoundException("진행 중인 세션이 없습니다.");
+        }
+
+        // 여러 개가 있다면 가장 최근에 시작한 세션 반환
+        GoalStudySession session = activeSessions.stream()
+                .max((s1, s2) -> s1.getStartedAt().compareTo(s2.getStartedAt()))
                 .orElseThrow(() -> new GoalStudySessionNotFoundException("진행 중인 세션이 없습니다."));
+        
         return new GoalStudySessionDto.Response(session);
     }
 
@@ -119,14 +126,16 @@ public class GoalStudySessionService {
      * 학습 통계 조회 (특정 기간)
      */
     public GoalStudySessionDto.StatisticsResponse getStatistics(Long userId, LocalDateTime start, LocalDateTime end) {
-        List<GoalStudySession> sessions = goalStudySessionRepository.findByUserIdAndStartedAtBetween(userId, start, end);
+        List<GoalStudySession> sessions = goalStudySessionRepository.findByUserIdAndStartedAtBetween(userId, start,
+                end);
 
         int totalSessions = sessions.size();
         int totalMinutes = sessions.stream().mapToInt(GoalStudySession::getDurationMinutes).sum();
         int totalPomoCount = sessions.stream().mapToInt(GoalStudySession::getPomoCount).sum();
         int totalAchievedAmount = sessions.stream().mapToInt(GoalStudySession::getAchievedAmount).sum();
 
-        return new GoalStudySessionDto.StatisticsResponse(totalSessions, totalMinutes, totalPomoCount, totalAchievedAmount);
+        return new GoalStudySessionDto.StatisticsResponse(totalSessions, totalMinutes, totalPomoCount,
+                totalAchievedAmount);
     }
 
     /**
