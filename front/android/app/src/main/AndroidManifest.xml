@@ -1,4 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<!-- Android 갤러리 권한 설정 -->
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+
+<!-- 인터넷 권한 (Supabase 통신) -->
+<uses-permission android:name="android.permission.INTERNET"/>
+
+<!-- 알림 권한 (Android 13+) -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+<!-- 정확한 알람 권한 (Android 12+) -->
+<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+<uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+
     <application
         android:label="front"
         android:name="${applicationName}"

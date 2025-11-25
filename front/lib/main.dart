@@ -11,11 +11,16 @@ import 'package:intl/date_symbol_data_local.dart';
 // Provider: 앱 전체에서 데이터를 공유하는 패키지
 import 'package:provider/provider.dart';
 
+// SharedPreferences: 로컬 저장소 (설정 데이터 읽기)
+import 'package:shared_preferences/shared_preferences.dart';
+
 // Supabase: 백엔드 서비스 (Storage, Auth, Database)
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/home_screen.dart';           // 홈 화면
 import 'services/auth_service.dart';         // 로그인 서비스
+import 'services/api_service.dart';          // API 서비스 (앱 실행 기록 등)
+import 'services/notification_service.dart'; // 로컬 알림 서비스
 import 'providers/settings_provider.dart';   // 설정 관리 Provider
 
 import 'config/supabase_config.dart'; 
@@ -33,13 +38,19 @@ void main() async {
   await initializeDateFormatting('ko_KR', null);
 
   // 로그인 서비스 초기화 (userId=1로 자동 로그인)
-  await AuthService.getInstance();
+  final authService = await AuthService.getInstance();
 
   // Supabase 초기화
   await Supabase.initialize(
-    url: SupabaseConfig.url,  
+    url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
   );
+
+  // 로컬 알림 서비스 초기화
+  await NotificationService.initialize();
+
+  // 앱 실행 시간 기록 (백그라운드에서 실행, 실패해도 앱 계속 진행)
+  ApiService.recordAppLaunch(authService.currentUserId);
 
   // 앱 시작
   // runApp: Flutter에게 "이제 앱을 화면에 그려!" 라고 알림
@@ -50,10 +61,55 @@ void main() async {
       // create: SettingsProvider 인스턴스를 생성하고
       // ..loadSettings(): 생성 직후 바로 설정을 불러옴
       // .. 연산자: 같은 객체에 여러 작업을 연속으로 수행
-      create: (_) => SettingsProvider()..loadSettings(),
+      create: (_) => SettingsProvider()
+        ..loadSettings().then((_) {
+          // 설정 로드 완료 후 알림 스케줄링
+          _scheduleNotifications(authService.currentUserId);
+        }),
       child: const LearnKitApp(),
     ),
   );
+}
+
+/// 로컬 알림 스케줄링
+///
+/// 설정에 따라 알림을 예약:
+/// - 자동 알림 ON: 주 사용 시간대 기반 (peak-hours API)
+/// - 자동 알림 OFF: 사용자가 설정한 시간
+///
+/// 매개변수:
+/// - userId: 사용자 ID (peak-hours 조회용)
+Future<void> _scheduleNotifications(int userId) async {
+  try {
+    // SettingsProvider에서 설정 읽기
+    // 주의: 이 시점에는 Provider context가 없으므로 SharedPreferences 직접 접근
+    final prefs = await SharedPreferences.getInstance();
+    final autoNotification = prefs.getBool('auto_notification') ?? false;
+    final manualHour = prefs.getInt('manual_notification_hour') ?? 19;
+    final manualMinute = prefs.getInt('manual_notification_minute') ?? 0;
+
+    const message = '공부할 시간이에요!';
+
+    if (autoNotification) {
+      // 자동 알림: 주 사용 시간대에서 가장 많이 사용한 시간 1회
+      final peakHour = await ApiService.fetchPeakHour(userId);
+      await NotificationService.scheduleDailyNotification(
+        hour: peakHour,
+        minute: 0,
+        message: message,
+      );
+    } else {
+      // 수동 알림: 사용자가 설정한 시간
+      await NotificationService.scheduleDailyNotification(
+        hour: manualHour,
+        minute: manualMinute,
+        message: message,
+      );
+    }
+  } catch (e) {
+    debugPrint('알림 스케줄링 실패: $e');
+    // 실패해도 앱 실행은 계속 진행
+  }
 }
 
 /// 앱의 최상위 위젯

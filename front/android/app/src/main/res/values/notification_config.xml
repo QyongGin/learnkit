@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 로컬 알림 채널 설정 -->
+    <string name="daily_reminder_channel_name">학습 알림</string>
+    <string name="daily_reminder_channel_description">매일 학습 시간 알림</string>
+    <string name="multiple_daily_reminder_channel_name">학습 알림</string>
+    <string name="multiple_daily_reminder_channel_description">주 사용 시간대 기반 학습 알림</string>
+</resources>
