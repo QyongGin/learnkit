@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
+import '../widgets/common_widgets.dart';
 import '../models/weekly_stats.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/logger_service.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -44,7 +47,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('통계 로드 실패: $e');
+      Log.d('통계 로드 실패: $e');
       setState(() {
         _isLoading = false;
       });
@@ -54,71 +57,46 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          '학습 통계',
-          style: TextStyle(
-            color: Color(0xFF191F28),
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        title: Text('학습 통계', style: AppTextStyles.heading2),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF4B5563)),
+            icon: Icon(Icons.refresh, color: AppColors.textSecondary),
             onPressed: _loadStats,
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingIndicator()
           : _stats == null
-              ? _buildEmptyState()
+              ? ErrorView(
+                  message: '통계 데이터를 불러올 수 없습니다',
+                  onRetry: _loadStats,
+                )
               : RefreshIndicator(
                   onRefresh: _loadStats,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(AppSpacing.xl),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildDateHeader(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: AppSpacing.xxl),
                         _buildSummaryCards(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: AppSpacing.xxl),
                         _buildWordBookStats(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: AppSpacing.xxl),
                         _buildGoalStats(),
-                        const SizedBox(height: 40), // 하단 여백
+                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
                 ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.bar_chart, size: 64, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          Text(
-            '통계 데이터를 불러올 수 없습니다',
-            style: TextStyle(color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _loadStats,
-            child: const Text('다시 시도'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -162,7 +140,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             iconColor: const Color(0xFF6366F1),
             label: '총 학습 시간',
             value: _formatDuration(time.totalMinutes),
-            subValue: '포모도로 ${_formatDuration(time.pomodoroMinutes)}',
+            subValue: '',
           ),
         ),
         const SizedBox(width: 12),
@@ -172,7 +150,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             iconColor: const Color(0xFFFF6B6B),
             label: '포모도로',
             value: '${(time.pomodoroMinutes / 25).floor()}회', // 대략적인 횟수 추정
-            subValue: '집중 시간 ${_formatDuration(time.pomodoroMinutes)}',
+            subValue: '',
           ),
         ),
       ],
@@ -193,7 +171,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -205,7 +183,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: iconColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: iconColor, size: 24),
@@ -228,14 +206,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               color: Color(0xFF191F28),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            subValue,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade500,
+          if (subValue.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              subValue,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade500,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -255,7 +235,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -452,7 +432,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),

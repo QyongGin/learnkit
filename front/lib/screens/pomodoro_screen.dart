@@ -8,6 +8,11 @@ import 'package:sensors_plus/sensors_plus.dart';
 import 'package:vibration/vibration.dart';
 // Provider 패턴 (설정 상태 관리)
 import 'package:provider/provider.dart';
+// 테마 및 공통 위젯
+import '../config/app_theme.dart';
+import '../widgets/common_widgets.dart';
+// 로거 서비스
+import '../services/logger_service.dart';
 // 데이터 모델
 import '../models/goal.dart';
 import '../models/study_session.dart';
@@ -18,10 +23,10 @@ import '../services/auth_service.dart';
 import '../providers/settings_provider.dart';
 
 /// ⏱️ 포모도로 시간 설정 (테스트용으로 쉽게 변경 가능)
-/// 실제 배포 시: FOCUS = 25, SHORT_BREAK = 5, LONG_BREAK = 30
-const int FOCUS_MINUTES = 1;       // 집중 시간 (분) - 테스트: 1분으로 변경 가능
-const int SHORT_BREAK_MINUTES = 1;  // 짧은 휴식 (분) - 테스트: 1분으로 변경 가능
-const int LONG_BREAK_MINUTES = 2;  // 장휴식 (분) - 테스트: 2분으로 변경 가능
+/// 실제 배포 시: focusMinutes = 25, shortBreakMinutes = 5, longBreakMinutes = 30
+const int focusMinutes = 1;       // 집중 시간 (분) - 테스트: 1분으로 변경 가능
+const int shortBreakMinutes = 1;  // 짧은 휴식 (분) - 테스트: 1분으로 변경 가능
+const int longBreakMinutes = 2;   // 장휴식 (분) - 테스트: 2분으로 변경 가능
 
 /// 포모도로 타이머 상태
 enum PomodoroState {
@@ -58,18 +63,18 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
   // 타이머
   Timer? _timer;
-  int _remainingSeconds = FOCUS_MINUTES * 60; // 기본 집중 시간
+  int _remainingSeconds = focusMinutes * 60; // 기본 집중 시간
   bool _isRunning = false;
 
   // 세션
   StudySession? _currentSession;
 
-  // === 센서 관련 ===
-  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription; // 가속도계 센서 구독
-  bool _isPhoneFaceDown = false; // 폰이 뒤집혀있는지 (화면이 바닥을 향함)
+  // 센서
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
+  bool _isPhoneFaceDown = false; // 폰이 뒤집혀있는지
   bool _waitingForFlip = false; // "출발!" 버튼 후 폰 뒤집기 대기 중
-  bool _isShowingPopup = false; // 팝업 표시 중 여부 (팝업 중 센서 무시)
-  bool _sensorEnabled = true; // 센서 활성화 상태 (설정에서 가져온 값 캐시)
+  bool _isShowingPopup = false; // 팝업 표시 중 (센서 무시)
+  bool _sensorEnabled = true; // 설정에서 가져온 센서 활성화 상태
 
   @override
   void initState() {
@@ -118,7 +123,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         return;
       }
     } catch (e) {
-      print('세션 자동 복구 실패: $e');
+      Log.d('세션 자동 복구 실패: $e');
     }
 
     // 2. 서버에 없지만, 홈 화면에서 명시적으로 이어하기를 누른 경우 (오프라인 등 예외 상황)
@@ -169,7 +174,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             (goal) => goal.id == session.goalId,
           );
         } catch (e) {
-          print('목표를 찾을 수 없습니다: ${session.goalId}');
+          Log.d('목표를 찾을 수 없습니다: ${session.goalId}');
         }
       }
     });
@@ -184,9 +189,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
           sessionId: _currentSession!.id,
           pomoCount: _totalPomodoros,
         );
-        print('포모도로 카운트 업데이트 성공: $_totalPomodoros');
+        Log.d('포모도로 카운트 업데이트 성공: $_totalPomodoros');
       } catch (e) {
-        print('포모도로 카운트 업데이트 실패: $e');
+        Log.d('포모도로 카운트 업데이트 실패: $e');
         // 에러가 발생해도 사용자 경험을 방해하지 않도록 조용히 실패
       }
     }
@@ -332,7 +337,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         try {
           Navigator.of(context).pop();
         } catch (e) {
-          print('팝업 닫기 실패 (onFlipDown): $e');
+          Log.d('팝업 닫기 실패 (onFlipDown): $e');
         } finally {
           _isShowingPopup = false;
         }
@@ -368,14 +373,13 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
   /// 진동
   void _vibrate() async {
-    if (await Vibration.hasVibrator() ?? false) {
+    if (await Vibration.hasVibrator()) {
       Vibration.vibrate(duration: 500);
     }
   }
 
   /// 중앙 팝업 (몇 포모, 휴식 등)
   void _showPomodoroPopup(String message) {
-    // 이미 팝업이 표시 중이면 무시
     if (_isShowingPopup) return;
 
     _isShowingPopup = true;
@@ -393,7 +397,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -402,19 +406,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.local_fire_department,
-                  color: Color(0xFFFF6B6B),
-                  size: 48,
-                ),
+                const Icon(Icons.local_fire_department, color: Color(0xFFFF6B6B), size: 48),
                 const SizedBox(height: 16),
                 Text(
                   message,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF191F28),
-                  ),
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF191F28)),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -430,9 +426,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         try {
           Navigator.of(context).pop();
         } catch (e) {
-          print('팝업 닫기 실패: $e');
+          Log.d('팝업 닫기 실패: $e');
         } finally {
-          _isShowingPopup = false; // 팝업 닫힐 때 플래그 리셋
+          _isShowingPopup = false;
         }
       }
     });
@@ -485,11 +481,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   void _resetCurrentTimer() {
     setState(() {
       if (_pomodoroState == PomodoroState.focus) {
-        _remainingSeconds = FOCUS_MINUTES * 60;
+        _remainingSeconds = focusMinutes * 60;
       } else if (_pomodoroState == PomodoroState.shortBreak) {
-        _remainingSeconds = SHORT_BREAK_MINUTES * 60;
+        _remainingSeconds = shortBreakMinutes * 60;
       } else {
-        _remainingSeconds = LONG_BREAK_MINUTES * 60;
+        _remainingSeconds = longBreakMinutes * 60;
       }
       _isRunning = false;
     });
@@ -532,7 +528,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         _showPomodoroPopup('${_totalPomodoros + 1}포모 준비!\n폰을 뒤집으세요');
         setState(() {
           _pomodoroState = PomodoroState.focus;
-          _remainingSeconds = FOCUS_MINUTES * 60;
+          _remainingSeconds = focusMinutes * 60;
           _waitingForFlip = true;  // 폰 뒤집기 대기
         });
       } else {
@@ -540,7 +536,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         _showPomodoroPopup('${_totalPomodoros + 1}포모 준비 완료!');
         setState(() {
           _pomodoroState = PomodoroState.focus;
-          _remainingSeconds = FOCUS_MINUTES * 60;
+          _remainingSeconds = focusMinutes * 60;
           _waitingForFlip = false; // 대기 없음
           _isRunning = false;      // 정지 상태 (사용자가 시작 눌러야 함)
         });
@@ -552,7 +548,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   void _startBreak(PomodoroState breakState) {
     setState(() {
       _pomodoroState = breakState;
-      _remainingSeconds = breakState == PomodoroState.longBreak ? LONG_BREAK_MINUTES * 60 : SHORT_BREAK_MINUTES * 60;
+      _remainingSeconds = breakState == PomodoroState.longBreak ? longBreakMinutes * 60 : shortBreakMinutes * 60;
     });
     _startTimer();
   }
@@ -701,22 +697,15 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     }
   }
 
-  /// 시간 포맷팅 (MM:SS)
-  String _formatTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
-  }
-
   /// 전체 시간 (초)
   int _getTotalSeconds() {
     switch (_pomodoroState) {
       case PomodoroState.focus:
-        return FOCUS_MINUTES * 60;
+        return focusMinutes * 60;
       case PomodoroState.shortBreak:
-        return SHORT_BREAK_MINUTES * 60;
+        return shortBreakMinutes * 60;
       case PomodoroState.longBreak:
-        return LONG_BREAK_MINUTES * 60;
+        return longBreakMinutes * 60;
     }
   }
 
@@ -730,13 +719,13 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF9FAFB),
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surface,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF191F28)),
+            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
             onPressed: () {
               if (_currentSession != null) {
                 _showExitConfirmDialog();
@@ -745,43 +734,31 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               }
             },
           ),
-          title: const Text(
+          title: Text(
             '포모도로 타이머',
-            style: TextStyle(
-              color: Color(0xFF191F28),
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
+            style: AppTextStyles.heading2,
           ),
           actions: [
             if (_currentSession != null)
               IconButton(
-                icon: const Icon(Icons.stop_circle_outlined, color: Colors.red),
+                icon: const Icon(Icons.stop_circle_outlined, color: AppColors.error),
                 onPressed: _endSession,
                 tooltip: '학습 종료',
               ),
           ],
         ),
         body: _isLoadingGoals
-            ? const Center(child: CircularProgressIndicator())
+            ? const LoadingIndicator()
             : SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(AppSpacing.xl),
                 child: Column(
                   children: [
-                    // 목표 선택
                     _buildGoalSelector(),
-                    const SizedBox(height: 32),
-
-                    // 타이머
+                    const SizedBox(height: AppSpacing.xxxl),
                     _buildTimer(),
-                    const SizedBox(height: 32),
-
-                    // 세트 정보
+                    const SizedBox(height: AppSpacing.xxxl),
                     _buildSessionInfo(),
-                    const SizedBox(height: 32),
-
-                    // 시작/정지 버튼
+                    const SizedBox(height: AppSpacing.xxxl),
                     _buildControlButton(),
                   ],
                 ),
@@ -832,50 +809,30 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   Widget _buildGoalSelector() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: AppDecorations.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '학습 목표 선택',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF191F28),
-            ),
-          ),
-          const SizedBox(height: 12),
+          Text('학습 목표 선택', style: AppTextStyles.label),
+          const SizedBox(height: AppSpacing.md),
 
           if (_goals.isEmpty)
             Text(
               '진행 중인 목표가 없습니다',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-              ),
+              style: AppTextStyles.body2,
             )
           else
             DropdownButtonFormField<Goal>(
-              isExpanded: true, // 텍스트 오버플로우 방지
+              isExpanded: true,
               initialValue: _selectedGoal,
               decoration: InputDecoration(
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
                 ),
               ),
               hint: const Text('목표를 선택하세요'),
@@ -890,11 +847,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               }).toList(),
               onChanged: _isRunning
                   ? null
-                  : (goal) {
-                      setState(() {
-                        _selectedGoal = goal;
-                      });
-                    },
+                  : (goal) => setState(() => _selectedGoal = goal),
             ),
         ],
       ),
@@ -905,15 +858,15 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   Widget _buildTimer() {
     final progress = 1 - (_remainingSeconds / _getTotalSeconds());
     final color = _pomodoroState == PomodoroState.focus
-        ? const Color(0xFF6366F1)
-        : const Color(0xFF20C997);
+        ? AppColors.primary
+        : AppColors.success;
 
     return Container(
       width: 280,
       height: 280,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white,
+        color: AppColors.surface,
         boxShadow: [
           BoxShadow(
             color: color.withValues(alpha: 0.2),
@@ -925,43 +878,31 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // 진행률 원
           SizedBox(
             width: 240,
             height: 240,
             child: CircularProgressIndicator(
               value: progress,
               strokeWidth: 12,
-              backgroundColor: Colors.grey.shade200,
+              backgroundColor: AppColors.divider,
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
-
-          // 시간 표시
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 _formatTime(_remainingSeconds),
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                  letterSpacing: -1,
-                ),
+                style: AppTextStyles.number.copyWith(fontSize: 48, color: color),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 _pomodoroState == PomodoroState.focus
                     ? '집중 시간'
                     : _pomodoroState == PomodoroState.shortBreak
                         ? '짧은 휴식'
                         : '장휴식',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
-                ),
+                style: AppTextStyles.body2,
               ),
             ],
           ),
@@ -970,64 +911,33 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
   }
 
+  /// 시간 포맷팅
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+
   /// 세션 정보
   Widget _buildSessionInfo() {
     return Row(
       children: [
         Expanded(
-          child: _buildInfoCard(
+          child: StatInfoCard(
             label: '완료 세트',
             value: '$_completedSets',
-            color: const Color(0xFF6366F1),
+            color: AppColors.primary,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppSpacing.md),
         Expanded(
-          child: _buildInfoCard(
+          child: StatInfoCard(
             label: '총 포모도로',
             value: '$_totalPomodoros',
-            color: const Color(0xFF8B5CF6),
+            color: AppColors.primaryLight,
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildInfoCard({
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 2,
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1057,112 +967,31 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   Widget _buildControlButton() {
     // 대기 중
     if (_waitingForFlip) {
-      return Container(
-        width: double.infinity,
-        height: 56,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.green.shade400, Colors.green.shade600],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.green.withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                '폰을 뒤집어주세요...',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
+      return GradientActionButton(
+        label: '폰을 뒤집어주세요...',
+        icon: Icons.flip,
+        colors: [Colors.green.shade400, Colors.green.shade600],
+        showLoading: true,
+        loadingText: '폰을 뒤집어주세요...',
       );
     }
 
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: _isRunning
-              ? [Colors.orange.shade400, Colors.orange.shade600]
-              : [const Color(0xFF4F46E5), const Color(0xFF6366F1)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: (_isRunning ? Colors.orange : const Color(0xFF6366F1))
-                .withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            if (_isRunning) {
-              _pauseTimer();
-            } else if (!_waitingForFlip) {
-              // 첫 시작 또는 재개 - 모두 폰 뒤집기부터 시작
-              _startWaitingForFlip();
-            } else {
-              // 대기 중 취소
-              setState(() {
-                _waitingForFlip = false;
-              });
-            }
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  _isRunning ? Icons.pause_circle_filled :
-                  _waitingForFlip ? Icons.cancel :
-                  (_currentSession == null ? Icons.flag : Icons.play_circle_filled),
-                  color: Colors.white,
-                  size: 28,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _isRunning ? '일시정지' :
-                  _waitingForFlip ? '대기 취소' :
-                  (_currentSession == null ? '출발!' : '재개'),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    final isStart = _currentSession == null;
+    return GradientActionButton(
+      label: _isRunning ? '일시정지' : (isStart ? '출발!' : '재개'),
+      icon: _isRunning
+          ? Icons.pause_circle_filled
+          : (isStart ? Icons.flag : Icons.play_circle_filled),
+      colors: _isRunning
+          ? [Colors.orange.shade400, Colors.orange.shade600]
+          : [const Color(0xFF4F46E5), const Color(0xFF6366F1)],
+      onTap: () {
+        if (_isRunning) {
+          _pauseTimer();
+        } else {
+          _startWaitingForFlip();
+        }
+      },
     );
   }
 }

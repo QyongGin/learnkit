@@ -1,3 +1,5 @@
+// shared_preferences: 앱 로컬 저장소
+// 간단한 key-value 형태로 데이터를 기기에 저장
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 사용자 인증 상태를 관리하는 서비스

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+// intl: 날짜/시간 포맷팅 (DateFormat)
 import 'package:intl/intl.dart';
-import '../models/study_session.dart';
+import '../config/app_theme.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/common_widgets.dart';
 
 /// 주간 정산 화면
 class WeeklySummaryScreen extends StatefulWidget {
@@ -13,7 +15,6 @@ class WeeklySummaryScreen extends StatefulWidget {
 }
 
 class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
-  List<StudySession> _weeklySessions = [];
   Map<int, GoalSummary> _goalSummaries = {};
   bool _isLoading = true;
   int _userId = 1;
@@ -83,7 +84,6 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
       }
 
       setState(() {
-        _weeklySessions = weeklySessions;
         _goalSummaries = goalSummaries;
         _totalMinutes = totalMinutes;
         _totalPomodoros = totalPomodoros;
@@ -111,29 +111,26 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
+        title: Text(
           '주간 정산',
-          style: TextStyle(
-            color: Color(0xFF191F28),
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
+          style: AppTextStyles.heading2.copyWith(
+            color: AppColors.textPrimary,
           ),
         ),
         centerTitle: false,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingIndicator()
           : RefreshIndicator(
               onRefresh: _loadWeeklySummary,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(AppSpacing.xl),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -143,36 +140,32 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                         Icon(
                           Icons.calendar_month_outlined,
                           size: 18,
-                          color: Colors.grey.shade600,
+                          color: AppColors.textSecondary,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           '최근 7일 (${_getWeekPeriod()})',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
+                          style: AppTextStyles.label.copyWith(
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.lg),
 
                     // 전체 요약 카드
                     _buildOverallSummary(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.xxl),
 
                     // 목표별 통계
                     if (_goalSummaries.isNotEmpty) ...[
-                      const Text(
+                      Text(
                         '목표별 달성도',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF191F28),
+                        style: AppTextStyles.heading3.copyWith(
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
 
                       ..._goalSummaries.values.map((summary) {
                         return _buildGoalSummaryCard(summary);
@@ -191,17 +184,17 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
   Widget _buildOverallSummary() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(AppSpacing.xxl),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primary.withBlue(240)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -216,7 +209,7 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: const Icon(
                   Icons.trending_up,
@@ -224,18 +217,16 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                   size: 24,
                 ),
               ),
-              const SizedBox(width: 12),
-              const Text(
+              const SizedBox(width: AppSpacing.md),
+              Text(
                 '이번 주 총 학습량',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                style: AppTextStyles.heading3.copyWith(
                   color: Colors.white,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
 
           // 3개 통계
           Row(
@@ -251,7 +242,7 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                 width: 1,
                 height: 50,
                 color: Colors.white.withValues(alpha: 0.3),
-                margin: const EdgeInsets.symmetric(horizontal: 12),
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               ),
               Expanded(
                 child: _buildOverallStatItem(
@@ -264,7 +255,7 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                 width: 1,
                 height: 50,
                 color: Colors.white.withValues(alpha: 0.3),
-                margin: const EdgeInsets.symmetric(horizontal: 12),
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               ),
               Expanded(
                 child: _buildOverallStatItem(
@@ -289,27 +280,24 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
+          style: AppTextStyles.caption.copyWith(
             color: Colors.white.withValues(alpha: 0.9),
           ),
         ),
         const SizedBox(height: 6),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
+          style: AppTextStyles.number.copyWith(
             color: Colors.white,
-            height: 1,
+            fontSize: 26,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           subValue,
-          style: TextStyle(
-            fontSize: 11,
+          style: AppTextStyles.caption.copyWith(
             color: Colors.white.withValues(alpha: 0.8),
+            fontSize: 11,
           ),
         ),
       ],
@@ -320,13 +308,13 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
   Widget _buildGoalSummaryCard(GoalSummary summary) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+          color: AppColors.primary.withValues(alpha: 0.2),
           width: 1.5,
         ),
       ),
@@ -337,25 +325,24 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.flag,
                   size: 18,
-                  color: Color(0xFF8B5CF6),
+                  color: AppColors.primary,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
                   summary.goalTitle,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: AppTextStyles.body1.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF191F28),
+                    color: AppColors.textPrimary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -364,21 +351,20 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F3F5),
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Text(
                   '${summary.sessionCount}회',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppTextStyles.caption.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
 
           // 통계 그리드
           Row(
@@ -388,25 +374,25 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                   icon: Icons.timer_outlined,
                   label: '학습 시간',
                   value: '${summary.totalMinutes}분',
-                  color: const Color(0xFF6366F1),
+                  color: AppColors.primary,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: _buildGoalStatItem(
                   icon: Icons.local_fire_department_outlined,
                   label: '포모도로',
                   value: '${summary.totalPomodoros}세트',
-                  color: const Color(0xFFFF6B6B),
+                  color: AppColors.error,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: _buildGoalStatItem(
                   icon: Icons.check_circle_outline,
                   label: '달성량',
                   value: '${summary.totalAchieved}',
-                  color: const Color(0xFF20C997),
+                  color: AppColors.success,
                 ),
               ),
             ],
@@ -423,10 +409,10 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Column(
         children: [
@@ -434,18 +420,17 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 14,
+            style: AppTextStyles.label.copyWith(
               fontWeight: FontWeight.w700,
-              color: Colors.grey.shade800,
+              color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
+            style: AppTextStyles.caption.copyWith(
               fontSize: 10,
-              color: Colors.grey.shade600,
+              color: AppColors.textSecondary,
             ),
           ),
         ],
@@ -454,26 +439,9 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        children: [
-          Icon(
-            Icons.insert_chart_outlined,
-            size: 48,
-            color: Colors.grey.shade300,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '이번 주 학습 기록이 없습니다',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade500,
-            ),
-          ),
-        ],
-      ),
+    return EmptyState(
+      icon: Icons.insert_chart_outlined,
+      title: '이번 주 학습 기록이 없습니다',
     );
   }
 }

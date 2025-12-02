@@ -22,6 +22,7 @@ import 'services/auth_service.dart';         // 로그인 서비스
 import 'services/api_service.dart';          // API 서비스 (앱 실행 기록 등)
 import 'services/notification_service.dart'; // 로컬 알림 서비스
 import 'providers/settings_provider.dart';   // 설정 관리 Provider
+import 'config/constants.dart';              // 앱 상수
 
 import 'config/supabase_config.dart'; 
 
@@ -88,22 +89,20 @@ Future<void> _scheduleNotifications(int userId) async {
     final manualHour = prefs.getInt('manual_notification_hour') ?? 19;
     final manualMinute = prefs.getInt('manual_notification_minute') ?? 0;
 
-    const message = '공부할 시간이에요!';
-
     if (autoNotification) {
       // 자동 알림: 주 사용 시간대에서 가장 많이 사용한 시간 1회
       final peakHour = await ApiService.fetchPeakHour(userId);
       await NotificationService.scheduleDailyNotification(
         hour: peakHour,
         minute: 0,
-        message: message,
+        message: NotificationConstants.dailyReminderMessage,
       );
     } else {
       // 수동 알림: 사용자가 설정한 시간
       await NotificationService.scheduleDailyNotification(
         hour: manualHour,
         minute: manualMinute,
-        message: message,
+        message: NotificationConstants.dailyReminderMessage,
       );
     }
   } catch (e) {
@@ -152,10 +151,8 @@ class LearnKitApp extends StatelessWidget {
           // 기본 언어 설정
           locale: const Locale('ko', 'KR'),
 
-          // 다크모드 설정에 따라 테마 자동 전환
-          // settings.isDarkMode가 true면 darkTheme 사용, false면 theme 사용
-          // 삼항 연산자: 조건 ? 참일때값 : 거짓일때값
-          themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          // 라이트 테마만 사용
+          themeMode: ThemeMode.light,
 
           // 라이트 테마 정의 (밝은 화면)
           theme: ThemeData(

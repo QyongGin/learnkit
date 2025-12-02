@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+// intl: 날짜/시간 포맷팅 (DateFormat)
 import 'package:intl/intl.dart';
+import '../config/app_theme.dart';
+import '../widgets/common_widgets.dart';
 import '../models/study_session.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
@@ -60,70 +63,32 @@ class _StudyHistoryScreenState extends State<StudyHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          '학습 기록',
-          style: TextStyle(
-            color: Color(0xFF191F28),
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-          ),
-        ),
+        title: Text('학습 기록', style: AppTextStyles.heading2),
         centerTitle: false,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingIndicator()
           : _sessions.isEmpty
-              ? _buildEmptyState()
+              ? const EmptyState(
+                  icon: Icons.history_outlined,
+                  title: '학습 기록이 없습니다',
+                  subtitle: '포모도로 타이머로 학습을 시작해보세요',
+                )
               : RefreshIndicator(
                   onRefresh: _loadSessions,
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     itemCount: _sessions.length,
                     itemBuilder: (context, index) {
                       return _buildSessionCard(_sessions[index]);
                     },
                   ),
                 ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.history_outlined,
-            size: 64,
-            color: Colors.grey.shade300,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '학습 기록이 없습니다',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
-              letterSpacing: -0.4,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '포모도로 타이머로 학습을 시작해보세요',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
-              letterSpacing: -0.3,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -271,7 +236,7 @@ class _StudyHistoryScreenState extends State<StudyHistoryScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+// flutter/services: 플랫폼 서비스 (키보드 입력 포맷팅 등)
 import 'package:flutter/services.dart';
+import '../config/app_theme.dart';
 import '../models/wordbook.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/common_widgets.dart';
 
 /// 단어장 생성/수정 화면 (빈도 비율 방식)
 class WordBookFormScreen extends StatefulWidget {
@@ -303,9 +306,9 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
           FocusScope.of(context).unfocus();
         },
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const LoadingIndicator()
             : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -327,7 +330,7 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
                       },
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.lg),
 
                     // 설명 입력
                     TextFormField(
@@ -340,18 +343,16 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
                       maxLines: 3,
                     ),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: AppSpacing.xxxl),
 
                     // 복습 빈도 설정 섹션
                     Row(
                       children: [
                         Text(
                           '복습 빈도 설정',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: AppTextStyles.heading3,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         GestureDetector(
                           onTap: () {
                             showDialog(
@@ -377,32 +378,31 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
                           child: Icon(
                             Icons.help_outline,
                             size: 20,
-                            color: Colors.grey.shade600,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
 
                     // 최소 배율 안내
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.shade200),
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
-                          const SizedBox(width: 8),
+                          Icon(Icons.info_outline, size: 16, color: AppColors.primary),
+                          const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: Text(
                               '최소 배율: 쉬움 1배 이상, 보통 2배 이상, 어려움 3배 이상\n쉬움 < 보통 < 어려움 순서를 지켜주세요',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.blue.shade900,
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.primary,
                                 height: 1.4,
                               ),
                             ),
@@ -411,14 +411,14 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.lg),
 
                     // 난이도별 빈도 버튼
                     _buildRatioButton(
                       '쉬움 (최소 1배)',
                       _easyRatio,
-                      Colors.green.shade100,
-                      Colors.green.shade700,
+                      AppColors.difficultyEasy.withValues(alpha: 0.2),
+                      AppColors.difficultyEasy,
                       () => _showRatioEditDialog(
                         '쉬움',
                         _easyRatio,
@@ -427,13 +427,13 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
 
                     _buildRatioButton(
                       '보통 (최소 2배)',
                       _normalRatio,
-                      Colors.blue.shade100,
-                      Colors.blue.shade700,
+                      AppColors.difficultyNormal.withValues(alpha: 0.2),
+                      AppColors.difficultyNormal,
                       () => _showRatioEditDialog(
                         '보통',
                         _normalRatio,
@@ -442,13 +442,13 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
 
                     _buildRatioButton(
                       '어려움 (최소 3배)',
                       _hardRatio,
-                      Colors.red.shade100,
-                      Colors.red.shade700,
+                      AppColors.difficultyHard.withValues(alpha: 0.2),
+                      AppColors.difficultyHard,
                       () => _showRatioEditDialog(
                         '어려움',
                         _hardRatio,
@@ -474,12 +474,12 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
   ) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(color: textColor.withValues(alpha: 0.3)),
         ),
         child: Row(
@@ -487,8 +487,7 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
           children: [
             Text(
               label,
-              style: TextStyle(
-                fontSize: 16,
+              style: AppTextStyles.body1.copyWith(
                 fontWeight: FontWeight.bold,
                 color: textColor,
               ),
@@ -497,13 +496,11 @@ class _WordBookFormScreenState extends State<WordBookFormScreen> {
               children: [
                 Text(
                   'x$ratio배',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  style: AppTextStyles.heading3.copyWith(
                     color: textColor,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Icon(Icons.edit, size: 20, color: textColor),
               ],
             ),

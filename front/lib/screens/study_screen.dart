@@ -1,11 +1,26 @@
 import 'package:flutter/material.dart';
+// 앱 테마 (색상, 텍스트 스타일, 간격 상수)
+import '../config/app_theme.dart';
+// 공통 위젯
+import '../widgets/common_widgets.dart';
+// 데이터 모델
 import '../models/wordbook.dart';
-import '../models/card.dart' as model;
+import '../models/card.dart' as model; // Card 클래스 충돌 방지 위해 별칭 사용
+// API 통신 및 인증 서비스
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+// 로거 서비스
+import '../services/logger_service.dart';
 
-/// 학습 화면
-/// 카드의 앞면(질문)과 뒷면(답+난이도 선택)을 보여주는 화면
+/// 단어 학습 화면
+/// 
+/// 플래시카드 방식으로 카드의 앞면(질문)을 보고 답을 떠올린 후,
+/// 뒷면(정답)을 확인하고 난이도를 선택하는 학습 화면입니다.
+/// 
+/// 주요 기능:
+/// - 카드 앞면/뒷면 전환 (탭)
+/// - 난이도 선택 (쉬움/보통/어려움)
+/// - 학습 세션 기록 (시작/종료 시간, 난이도별 카운트)
 class StudyScreen extends StatefulWidget {
   final WordBook wordBook;
   final List<model.CardDetail> cards;
@@ -41,7 +56,7 @@ class _StudyScreenState extends State<StudyScreen> {
 
   Future<void> _startSession() async {
     try {
-      print('학습 세션 시작 요청...');
+      Log.d('학습 세션 시작 요청...');
       final authService = await AuthService.getInstance();
       final userId = authService.currentUserId;
       
@@ -60,7 +75,7 @@ class _StudyScreenState extends State<StudyScreen> {
         }
       }
       
-      print('초기 난이도 분포 - 어려움: $initialHard, 보통: $initialNormal, 쉬움: $initialEasy');
+      Log.d('초기 난이도 분포 - 어려움: $initialHard, 보통: $initialNormal, 쉬움: $initialEasy');
       
       final session = await ApiService.startWordBookSession(
         userId: userId,
@@ -74,14 +89,14 @@ class _StudyScreenState extends State<StudyScreen> {
         _sessionId = session.id;
         _startTime = DateTime.now();
       });
-      print('학습 세션 시작 성공: ID=${session.id}');
+      Log.d('학습 세션 시작 성공: ID=${session.id}');
     } catch (e) {
-      print('세션 시작 실패: $e');
+      Log.d('세션 시작 실패: $e');
     }
   }
 
   Future<void> _endSession() async {
-    print('학습 세션 종료 시도...');
+    Log.d('학습 세션 종료 시도...');
     
     // 세션 시작이 완료될 때까지 대기
     if (_sessionStartFuture != null) {
@@ -89,7 +104,7 @@ class _StudyScreenState extends State<StudyScreen> {
     }
 
     if (_sessionId == null || _startTime == null) {
-      print('세션 ID 또는 시작 시간이 없어 종료할 수 없습니다.');
+      Log.d('세션 ID 또는 시작 시간이 없어 종료할 수 없습니다.');
       return;
     }
 
@@ -112,8 +127,8 @@ class _StudyScreenState extends State<StudyScreen> {
         }
       }
 
-      print('학습 세션 종료 요청');
-      print('최종 난이도 분포 - 어려움: $finalHard, 보통: $finalNormal, 쉬움: $finalEasy');
+      Log.d('학습 세션 종료 요청');
+      Log.d('최종 난이도 분포 - 어려움: $finalHard, 보통: $finalNormal, 쉬움: $finalEasy');
 
       final result = await ApiService.endWordBookSession(
         sessionId: _sessionId!,
@@ -121,14 +136,14 @@ class _StudyScreenState extends State<StudyScreen> {
         normalCount: finalNormal,
         easyCount: finalEasy,
       );
-      print('✅ 학습 세션 종료 성공: ID=${result.id}');
+      Log.d('✅ 학습 세션 종료 성공: ID=${result.id}');
       
       // 세션 ID 초기화하여 중복 종료 방지
       _sessionId = null;
       _startTime = null;
     } catch (e, stackTrace) {
-      print('❌ 세션 종료 실패: $e');
-      print('Stack trace: $stackTrace');
+      Log.d('❌ 세션 종료 실패: $e');
+      Log.d('Stack trace: $stackTrace');
     }
   }
 
@@ -138,7 +153,7 @@ class _StudyScreenState extends State<StudyScreen> {
     // 화면을 나갈 때도 세션 종료 시도 (비동기로 실행하되 대기하지 않음)
     if (_sessionId != null && _startTime != null) {
       _endSession().catchError((e) {
-        print('dispose에서 세션 종료 실패: $e');
+        Log.d('dispose에서 세션 종료 실패: $e');
       });
     }
     super.dispose();
@@ -153,22 +168,19 @@ class _StudyScreenState extends State<StudyScreen> {
     final currentCard = widget.cards[_currentIndex];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text('${widget.wordBook.title} 학습'),
-        backgroundColor: const Color(0xFF4A90E2),
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.surface,
         elevation: 0,
         actions: [
           Center(
             child: Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(right: AppSpacing.lg),
               child: Text(
                 '${_currentIndex + 1}/${widget.cards.length}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTextStyles.label.copyWith(color: AppColors.surface),
               ),
             ),
           ),
@@ -184,38 +196,27 @@ class _StudyScreenState extends State<StudyScreen> {
   Widget _buildFrontSide(model.CardDetail card) {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 진행도 바
             _buildProgressBar(),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
 
             // 질문 카드
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
+              padding: const EdgeInsets.all(AppSpacing.xxl),
+              decoration: AppDecorations.card,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // "질문" 라벨
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4A90E2).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     child: const Text(
                       '질문',
@@ -260,7 +261,7 @@ class _StudyScreenState extends State<StudyScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -368,7 +369,7 @@ class _StudyScreenState extends State<StudyScreen> {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),
@@ -381,7 +382,7 @@ class _StudyScreenState extends State<StudyScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4CAF50).withOpacity(0.1),
+                      color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
@@ -457,27 +458,27 @@ class _StudyScreenState extends State<StudyScreen> {
             const SizedBox(height: 16),
 
             // 난이도 버튼들
-            _buildDifficultyButton(
-              '쉬움 😊',
-              '${widget.wordBook.easyFrequencyRatio}배',
-              const Color(0xFF4CAF50),
-              model.CardDifficulty.EASY,
+            DifficultyOptionButton(
+              title: '쉬움 😊',
+              subtitle: '${widget.wordBook.easyFrequencyRatio}배',
+              color: const Color(0xFF4CAF50),
+              onTap: () => _selectDifficulty(model.CardDifficulty.EASY),
             ),
             const SizedBox(height: 12),
 
-            _buildDifficultyButton(
-              '보통 😐',
-              '${widget.wordBook.normalFrequencyRatio}배',
-              const Color(0xFF4A90E2),
-              model.CardDifficulty.NORMAL,
+            DifficultyOptionButton(
+              title: '보통 😐',
+              subtitle: '${widget.wordBook.normalFrequencyRatio}배',
+              color: const Color(0xFF4A90E2),
+              onTap: () => _selectDifficulty(model.CardDifficulty.NORMAL),
             ),
             const SizedBox(height: 12),
 
-            _buildDifficultyButton(
-              '어려움 😰',
-              '${widget.wordBook.hardFrequencyRatio}배',
-              const Color(0xFF9C27B0),
-              model.CardDifficulty.HARD,
+            DifficultyOptionButton(
+              title: '어려움 😰',
+              subtitle: '${widget.wordBook.hardFrequencyRatio}배',
+              color: const Color(0xFF9C27B0),
+              onTap: () => _selectDifficulty(model.CardDifficulty.HARD),
             ),
           ],
         ),
@@ -526,97 +527,18 @@ class _StudyScreenState extends State<StudyScreen> {
     );
   }
 
-  /// 난이도 선택 버튼
-  Widget _buildDifficultyButton(
-    String title,
-    String subtitle,
-    Color color,
-    model.CardDifficulty difficulty,
-  ) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _selectDifficulty(difficulty),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: Text(
-                    title.split(' ').last, // 이모지만 추출
-                    style: const TextStyle(fontSize: 24),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title.split(' ').first, // "쉬움", "보통", "어려움"
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: color,
-                size: 20,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   /// 난이도 선택 처리
   void _selectDifficulty(model.CardDifficulty difficulty) async {
     // 난이도별 카운트 증가
     if (difficulty == model.CardDifficulty.EASY) {
       _easyCount++;
-      print('✅ 쉬움 선택 (총 $_easyCount)');
+      Log.d('✅ 쉬움 선택 (총 $_easyCount)');
     } else if (difficulty == model.CardDifficulty.NORMAL) {
       _normalCount++;
-      print('✅ 보통 선택 (총 $_normalCount)');
+      Log.d('✅ 보통 선택 (총 $_normalCount)');
     } else if (difficulty == model.CardDifficulty.HARD) {
       _hardCount++;
-      print('✅ 어려움 선택 (총 $_hardCount)');
+      Log.d('✅ 어려움 선택 (총 $_hardCount)');
     }
 
     // API 호출 (난이도 업데이트)
@@ -626,7 +548,7 @@ class _StudyScreenState extends State<StudyScreen> {
         difficulty: difficulty,
       );
     } catch (e) {
-      print('난이도 업데이트 실패: $e');
+      Log.d('난이도 업데이트 실패: $e');
       // 실패해도 학습은 계속 진행
     }
 
@@ -639,8 +561,8 @@ class _StudyScreenState extends State<StudyScreen> {
 
     // 모든 카드를 학습했으면 세션 종료
     if (_currentIndex >= widget.cards.length) {
-      print('🎯 모든 카드 학습 완료! 세션 종료 시작...');
-      print('최종 카운트 - 쉬움: $_easyCount, 보통: $_normalCount, 어려움: $_hardCount');
+      Log.d('🎯 모든 카드 학습 완료! 세션 종료 시작...');
+      Log.d('최종 카운트 - 쉬움: $_easyCount, 보통: $_normalCount, 어려움: $_hardCount');
       await _endSession();
     }
 
@@ -680,7 +602,7 @@ class _StudyScreenState extends State<StudyScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),

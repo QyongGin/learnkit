@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+// intl: 날짜/시간 포맷팅 (DateFormat)
 import 'package:intl/intl.dart';
+import '../config/app_theme.dart';
 import '../models/goal.dart';
 import '../models/study_session.dart';
 import '../services/api_service.dart';
@@ -130,31 +132,23 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     final lastStudyDate = _getLastStudyDate();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          goal.title,
-          style: const TextStyle(
-            color: Color(0xFF191F28),
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-          ),
-        ),
+        title: Text(goal.title, style: AppTextStyles.heading2),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit_outlined, color: Colors.black87),
+            icon: const Icon(Icons.edit_outlined, color: AppColors.textPrimary),
             onPressed: _navigateToEdit,
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            icon: const Icon(Icons.delete_outline, color: AppColors.error),
             onPressed: _deleteGoal,
           ),
         ],
@@ -163,17 +157,15 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
         onRefresh: _loadSessions,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 진행도 카드
               _buildProgressCard(goal),
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.xl),
 
-              // 최근 학습일 카드
               if (lastStudyDate != null) _buildLastStudyCard(lastStudyDate),
-              if (lastStudyDate != null) const SizedBox(height: 20),
+              if (lastStudyDate != null) const SizedBox(height: AppSpacing.xl),
 
               // 학습 기록 섹션
               Row(

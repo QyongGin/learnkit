@@ -32,7 +32,7 @@ class WordCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -161,7 +161,7 @@ class WordCard extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
+              color: isSelected ? color.withValues(alpha: 0.2) : Colors.transparent,
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -309,10 +309,10 @@ class DifficultyBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: config['color'].withOpacity(0.15),
+        color: config['color'].withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: config['color'].withOpacity(0.3),
+          color: config['color'].withValues(alpha: 0.3),
           width: 1,
         ),
       ),

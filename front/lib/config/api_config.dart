@@ -1,10 +1,12 @@
+// dart:io - 플랫폼 정보 접근 (Platform.isIOS 등)
 import 'dart:io';
+import '../services/logger_service.dart';
 
 /// API 설정 관리
 class ApiConfig {
   // 개발 환경에서 자동으로 IP 감지 (추후 구현)
   // 현재는 수동으로 설정
-  static const String _manualIp = '192.168.35.164'; // 여기만 수정하면 됨!
+  static const String _manualIp = '192.168.35.20'; // 여기만 수정하면 됨!
   static const int _port = 8080;
 
   /// 백엔드 서버 주소
@@ -28,7 +30,7 @@ class ApiConfig {
 
   /// 현재 설정 출력 (디버깅용)
   static void printConfig() {
-    print('🌐 API Base URL: $baseUrl');
-    print('📱 Platform: ${Platform.operatingSystem}');
+    Log.i('🌐 API Base URL: $baseUrl');
+    Log.i('📱 Platform: ${Platform.operatingSystem}');
   }
 }

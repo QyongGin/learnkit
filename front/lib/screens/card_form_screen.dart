@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 import '../models/card.dart' as models;
 import '../services/api_service.dart';
 
@@ -96,40 +97,36 @@ class _CardFormScreenState extends State<CardFormScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         ),
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 20),
-              const Text(
+              const SizedBox(height: AppSpacing.xl),
+              Text(
                 '난이도 설정',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.4,
-                ),
+                style: AppTextStyles.heading3,
               ),
-              const Divider(height: 32),
+              const Divider(height: AppSpacing.xxxl),
               _buildDifficultyOption(
                 models.CardDifficulty.EASY,
                 '쉬움',
-                const Color(0xFF20C997),
+                AppColors.difficultyEasy,
               ),
               _buildDifficultyOption(
                 models.CardDifficulty.NORMAL,
                 '보통',
-                const Color(0xFF3182F6),
+                AppColors.difficultyNormal,
               ),
               _buildDifficultyOption(
                 models.CardDifficulty.HARD,
                 '어려움',
-                const Color(0xFFFF6B6B),
+                AppColors.difficultyHard,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.xl),
             ],
           ),
         ),
@@ -160,16 +157,14 @@ class _CardFormScreenState extends State<CardFormScreen> {
           border: Border.all(color: color, width: 2),
         ),
         child: isSelected
-            ? const Icon(Icons.check, color: Colors.white, size: 16)
+            ? Icon(Icons.check, color: AppColors.surface, size: 16)
             : null,
       ),
       title: Text(
         label,
-        style: TextStyle(
-          fontSize: 16,
+        style: AppTextStyles.body1.copyWith(
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-          color: isSelected ? color : Colors.grey.shade700,
-          letterSpacing: -0.3,
+          color: isSelected ? color : AppColors.textSecondary,
         ),
       ),
       trailing: isSelected
@@ -181,11 +176,11 @@ class _CardFormScreenState extends State<CardFormScreen> {
   Color _getDifficultyColor() {
     switch (_selectedDifficulty) {
       case models.CardDifficulty.EASY:
-        return const Color(0xFF20C997);
+        return AppColors.difficultyEasy;
       case models.CardDifficulty.NORMAL:
-        return const Color(0xFF3182F6);
+        return AppColors.difficultyNormal;
       case models.CardDifficulty.HARD:
-        return const Color(0xFFFF6B6B);
+        return AppColors.difficultyHard;
     }
   }
 
@@ -203,21 +198,18 @@ class _CardFormScreenState extends State<CardFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.card == null ? '카드 추가' : '카드 수정',
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.4,
+          style: AppTextStyles.heading3.copyWith(
+            color: AppColors.textPrimary,
           ),
         ),
         actions: [
@@ -225,11 +217,11 @@ class _CardFormScreenState extends State<CardFormScreen> {
           GestureDetector(
             onTap: _showDifficultyMenu,
             child: Container(
-              margin: const EdgeInsets.only(right: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              margin: const EdgeInsets.only(right: AppSpacing.lg),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 6),
               decoration: BoxDecoration(
                 color: _getDifficultyColor().withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border.all(
                   color: _getDifficultyColor().withValues(alpha: 0.3),
                   width: 1,
@@ -239,14 +231,11 @@ class _CardFormScreenState extends State<CardFormScreen> {
                 children: [
                   Text(
                     _getDifficultyLabel(),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyles.label.copyWith(
                       color: _getDifficultyColor(),
-                      letterSpacing: -0.3,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Icon(
                     Icons.arrow_drop_down,
                     color: _getDifficultyColor(),
@@ -266,13 +255,13 @@ class _CardFormScreenState extends State<CardFormScreen> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(AppSpacing.xl),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // 앞면 (질문) 입력
                       _buildLabel('앞면'),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.sm),
                       _buildTextField(
                         controller: _frontController,
                         hintText: '질문 또는 단어를 입력하세요',
@@ -283,11 +272,11 @@ class _CardFormScreenState extends State<CardFormScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppSpacing.xxl),
 
                       // 뒷면 (답변) 입력
                       _buildLabel('뒷면'),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.sm),
                       _buildTextField(
                         controller: _backController,
                         hintText: '답변 또는 뜻을 입력하세요',
@@ -307,9 +296,9 @@ class _CardFormScreenState extends State<CardFormScreen> {
 
             // 저장 버튼
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(AppSpacing.xl),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.05),
@@ -325,29 +314,25 @@ class _CardFormScreenState extends State<CardFormScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _saveCard,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                      backgroundColor: AppColors.textPrimary,
+                      foregroundColor: AppColors.surface,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                     ),
                     child: _isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: AppColors.surface,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             '저장',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.3,
-                            ),
+                            style: AppTextStyles.button,
                           ),
                   ),
                 ),
@@ -363,11 +348,8 @@ class _CardFormScreenState extends State<CardFormScreen> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.3,
-        color: Colors.black87,
+      style: AppTextStyles.label.copyWith(
+        color: AppColors.textPrimary,
       ),
     );
   }
@@ -384,41 +366,36 @@ class _CardFormScreenState extends State<CardFormScreen> {
       minLines: minLines,
       maxLines: maxLines,
       validator: validator,
-      style: const TextStyle(
-        fontSize: 16,
-        letterSpacing: -0.3,
-      ),
+      style: AppTextStyles.body1,
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: TextStyle(
-          color: Colors.grey.shade400,
-          fontSize: 16,
-          letterSpacing: -0.3,
+        hintStyle: AppTextStyles.body1.copyWith(
+          color: AppColors.textHint,
         ),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.surface,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.black, width: 2),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderSide: BorderSide(color: AppColors.textPrimary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFFF6B6B)),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderSide: BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFFF6B6B), width: 2),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderSide: BorderSide(color: AppColors.error, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
+          horizontal: AppSpacing.lg,
           vertical: 14,
         ),
       ),

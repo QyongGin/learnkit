@@ -1,8 +1,15 @@
 // Flutter Material Design 위젯 제공
 import 'package:flutter/material.dart';
+// 날짜 포맷팅 패키지
+import 'package:intl/intl.dart';
+// 테마 및 공통 위젯
+import '../config/app_theme.dart';
+import '../widgets/common_widgets.dart';
 // 데이터 모델
 import '../models/home_data.dart';
 import '../models/schedule.dart';
+// 로거 서비스
+import '../services/logger_service.dart';
 // API 통신 및 인증 서비스
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
@@ -19,8 +26,6 @@ import 'goal_list_screen.dart';
 import 'study_history_screen.dart';
 import 'settings_screen.dart';
 import 'statistics_screen.dart';
-// 날짜 포맷팅 패키지
-import 'package:intl/intl.dart';
 
 /// 홈 화면
 /// - 학습 목표 요약 표시
@@ -35,8 +40,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // 홈 데이터 (미구현 API)
-  HomeData? _homeData;
   // 로딩 상태
   bool _isLoading = true;
   // 에러 메시지
@@ -167,16 +170,16 @@ class _HomeScreenState extends State<HomeScreen> {
       try {
         final activeWordBookSession = await ApiService.fetchActiveWordBookSession(_userId);
         if (activeWordBookSession != null && mounted) {
-          print('⚠️ 진행 중인 단어장 학습 세션 발견 (ID=${activeWordBookSession.id})');
+          Log.d('⚠️ 진행 중인 단어장 학습 세션 발견 (ID=${activeWordBookSession.id})');
           // 사용자에게 선택 옵션 제공
           _showWordBookSessionDialog(activeWordBookSession);
         }
       } catch (e) {
-        print('단어장 세션 확인 중 에러: $e');
+        Log.d('단어장 세션 확인 중 에러: $e');
       }
     } catch (e) {
       // 에러 시 무시 (세션 없음으로 처리)
-      print('진행 중인 세션 확인 실패: $e');
+      Log.d('진행 중인 세션 확인 실패: $e');
     }
   }
 
@@ -447,23 +450,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppColors.backgroundAlt,
       body: SafeArea(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const LoadingIndicator()
             : _error.isNotEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('데이터를 불러오는데 실패했습니다'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadAllDataParallel,
-                          child: const Text('다시 시도'),
-                        ),
-                      ],
-                    ),
+                ? ErrorView(
+                    message: '데이터를 불러오는데 실패했습니다',
+                    onRetry: _loadAllDataParallel,
                   )
                 : RefreshIndicator(
                     onRefresh: () async {
@@ -479,53 +473,33 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: _toggleCalendar,
                             onVerticalDragEnd: (details) {
                               if (details.primaryVelocity! > 0) {
-                                // 아래로 드래그
-                                setState(() {
-                                  _showCalendar = true;
-                                });
+                                setState(() => _showCalendar = true);
                               } else {
-                                // 위로 드래그
-                                setState(() {
-                                  _showCalendar = false;
-                                });
+                                setState(() => _showCalendar = false);
                               }
                             },
                             child: Container(
                               width: double.infinity,
-                              margin: const EdgeInsets.all(16),
+                              margin: const EdgeInsets.all(AppSpacing.lg),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 16,
+                                horizontal: AppSpacing.xl,
+                                vertical: AppSpacing.lg,
                               ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
+                              decoration: AppDecorations.card,
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
                                     _getCurrentDate(),
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
-                                    ),
+                                    style: AppTextStyles.heading3,
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: AppSpacing.sm),
                                   Icon(
                                     _showCalendar
                                         ? Icons.keyboard_arrow_up
                                         : Icons.keyboard_arrow_down,
-                                    color: Colors.grey,
+                                    color: AppColors.textHint,
                                   ),
                                 ],
                               ),
@@ -535,17 +509,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           // 캘린더 (접었다 폈다 가능)
                           if (_showCalendar) ...[
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                               child: CalendarWidget(
                                 onDaySelected: _onDaySelected,
                                 onDayLongPressed: (date) {
-                                  // 날짜 길게 누르면 일정 추가
                                   _openScheduleForm(selectedDate: date);
                                 },
                                 schedules: _schedules,
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: AppSpacing.lg),
                             // 선택된 날짜의 스케줄 목록
                             ScheduleListWidget(
                               selectedDate: _selectedDate,
@@ -560,7 +533,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                               onToggleComplete: _toggleScheduleComplete,
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: AppSpacing.lg),
                           ],
 
                           // 오늘의 할 일 섹션
@@ -591,7 +564,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           // 타이머 섹션
                           SectionCard(
                             title: '타이머',
-                            subtitle: _homeData?.timerInfo.displayText ?? '',
+                            subtitle: '포모도로 기법으로 집중력을 높이세요',
                             onTap: () {
                               // 포모도로 타이머 화면으로 이동
                               Navigator.push(
@@ -641,80 +614,46 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       // 하단 네비게이션 바
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),  // 위쪽으로 그림자
-            ),
-          ],
-        ),
+        decoration: AppDecorations.bottomNavBar,
         child: BottomNavigationBar(
           backgroundColor: Colors.transparent,
-          elevation: 0,  // 그림자 제거 (Container에서 이미 처리)
-          selectedItemColor: const Color(0xFF6366F1),  // 선택된 아이템 색상
-          unselectedItemColor: Colors.grey,  // 미선택 아이템 색상
-          currentIndex: 1,  // 현재 홈 화면 (1번 인덱스)
-          type: BottomNavigationBarType.fixed,  // 고정 타입 (4개 아이템)
+          elevation: 0,
+          selectedItemColor: AppColors.primary,
+          unselectedItemColor: AppColors.textHint,
+          currentIndex: 1,
+          type: BottomNavigationBarType.fixed,
           items: const [
-            // 0번: 프로필
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: '',
-            ),
-            // 1번: 홈
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home),
-              label: '',
-            ),
-            // 2번: 통계
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart),
-              label: '',
-            ),
-            // 3번: 설정
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings),
-              label: '',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: ''),
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
+            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: ''),
+            BottomNavigationBarItem(icon: Icon(Icons.settings), label: ''),
           ],
-          // 네비게이션 아이템 탭 시
-          onTap: (index) {
-            if (index == 0) {
-              // 프로필 화면으로 이동
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ProfileScreen(),
-                ),
-              ).then((_) {
-                // 프로필에서 돌아올 때 단어장 통계 새로고침
-                _loadWordBookStats();
-              });
-            } else if (index == 1) {
-              // 이미 홈 화면이므로 아무 동작 없음
-            } else if (index == 2) {
-              // 통계 화면으로 이동
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const StatisticsScreen(),
-                ),
-              );
-            } else if (index == 3) {
-              // 설정 화면으로 이동
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsScreen(),
-                ),
-              );
-            }
-          },
+          onTap: _onBottomNavTap,
         ),
       ),
     );
+  }
+
+  void _onBottomNavTap(int index) {
+    switch (index) {
+      case 0:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ProfileScreen()),
+        ).then((_) => _loadWordBookStats());
+        break;
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const StatisticsScreen()),
+        );
+        break;
+      case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SettingsScreen()),
+        );
+        break;
+    }
   }
 }

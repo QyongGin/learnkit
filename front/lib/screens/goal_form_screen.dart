@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 import '../models/goal.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
@@ -132,46 +133,31 @@ class _GoalFormScreenState extends State<GoalFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black87),
+          icon: const Icon(Icons.close, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           isEditMode ? '목표 수정' : '새 목표',
-          style: const TextStyle(
-            color: Color(0xFF191F28),
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-          ),
+          style: AppTextStyles.heading2,
         ),
       ),
       body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus();
-        },
+        onTap: () => FocusScope.of(context).unfocus(),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 목표 제목
-                const Text(
-                  '목표 제목',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF191F28),
-                  ),
-                ),
-                const SizedBox(height: 8),
+                Text('목표 제목', style: AppTextStyles.label),
+                const SizedBox(height: AppSpacing.sm),
                 TextFormField(
                   controller: _titleController,
                   decoration: InputDecoration(

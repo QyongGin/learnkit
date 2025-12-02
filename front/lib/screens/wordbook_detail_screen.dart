@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 import '../models/wordbook.dart';
 import '../models/card.dart' as model;
 import '../services/api_service.dart';
+import '../utils/formatters.dart';
+import '../widgets/common_widgets.dart';
 import 'card_form_screen.dart';
 import 'study_session_screen.dart';
 
@@ -68,16 +71,7 @@ class _WordBookDetailScreenState extends State<WordBookDetailScreen> {
   }
 
   int _getDifficultyValue(model.CardDifficulty? difficulty) {
-    switch (difficulty) {
-      case model.CardDifficulty.HARD:
-        return 3;
-      case model.CardDifficulty.NORMAL:
-        return 2;
-      case model.CardDifficulty.EASY:
-        return 1;
-      default:
-        return 0;
-    }
+    return DifficultyUtils.toValue(difficulty);
   }
 
   void _changeSortType(SortType newSort) {
@@ -150,35 +144,24 @@ class _WordBookDetailScreenState extends State<WordBookDetailScreen> {
   Color _getDifficultyColor(model.CardDifficulty? difficulty) {
     switch (difficulty) {
       case model.CardDifficulty.EASY:
-        return const Color(0xFF20C997);
+        return AppColors.difficultyEasy;
       case model.CardDifficulty.NORMAL:
-        return const Color(0xFF3182F6);
+        return AppColors.difficultyNormal;
       case model.CardDifficulty.HARD:
-        return const Color(0xFFFF6B6B);
+        return AppColors.difficultyHard;
       default:
-        return Colors.grey;
+        return AppColors.textHint;
     }
   }
 
   String _getDifficultyLabel(model.CardDifficulty? difficulty) {
-    switch (difficulty) {
-      case model.CardDifficulty.EASY:
-        return '쉬움';
-      case model.CardDifficulty.NORMAL:
-        return '보통';
-      case model.CardDifficulty.HARD:
-        return '어려움';
-      default:
-        return '-';
-    }
+    return DifficultyUtils.toLabel(difficulty);
   }
 
   /// 학습 세션 시작
   void _startStudySession() {
     if (_cards.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('학습할 카드가 없습니다')),
-      );
+      AppSnackBar.show(context, '학습할 카드가 없습니다');
       return;
     }
 

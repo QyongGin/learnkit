@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 import '../models/goal.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../utils/formatters.dart';
+import '../widgets/common_widgets.dart';
 import 'goal_detail_screen.dart';
 import 'goal_form_screen.dart';
 
@@ -22,163 +25,118 @@ class _GoalListScreenState extends State<GoalListScreen> {
   void initState() {
     super.initState();
     _initAuth();
-    _loadGoals();
   }
 
   Future<void> _initAuth() async {
     final authService = await AuthService.getInstance();
-    setState(() {
-      _userId = authService.currentUserId;
-    });
+    if (mounted) {
+      setState(() => _userId = authService.currentUserId);
+      _loadGoals();
+    }
   }
 
   Future<void> _loadGoals() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final goals = await ApiService.fetchGoals(_userId);
-      setState(() {
-        _goals = goals;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('목표를 불러오는데 실패했습니다: $e')),
-        );
+        setState(() {
+          _goals = goals;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        AppSnackBar.showError(context, '목표를 불러오는데 실패했습니다');
       }
     }
   }
 
-  void _navigateToGoalForm([Goal? goal]) async {
-    final result = await Navigator.push(
+  Future<void> _navigateToGoalForm([Goal? goal]) async {
+    final result = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (context) => GoalFormScreen(goal: goal),
-      ),
+      MaterialPageRoute(builder: (_) => GoalFormScreen(goal: goal)),
     );
-
-    if (result == true) {
-      _loadGoals();
-    }
+    if (result == true) _loadGoals();
   }
 
   void _navigateToGoalDetail(Goal goal) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => GoalDetailScreen(goal: goal),
-      ),
+      MaterialPageRoute(builder: (_) => GoalDetailScreen(goal: goal)),
     ).then((_) => _loadGoals());
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          '목표',
-          style: TextStyle(
-            color: Color(0xFF191F28),
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-          ),
-        ),
-        centerTitle: false,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _goals.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _loadGoals,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _goals.length,
-                    itemBuilder: (context, index) {
-                      return _buildGoalCard(_goals[index]);
-                    },
-                  ),
-                ),
+      backgroundColor: AppColors.background,
+      appBar: AppBarStyles.standard(title: '목표'),
+      body: _buildBody(),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToGoalForm(),
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.textPrimary,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.flag_outlined,
-            size: 64,
-            color: Colors.grey.shade300,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '목표가 없습니다',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
-              letterSpacing: -0.4,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '+ 버튼을 눌러 첫 목표를 추가해보세요',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
-              letterSpacing: -0.3,
-            ),
-          ),
-        ],
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const LoadingIndicator();
+    }
+
+    if (_goals.isEmpty) {
+      return EmptyState(
+        icon: Icons.flag_outlined,
+        title: '목표가 없습니다',
+        subtitle: '+ 버튼을 눌러 첫 목표를 추가해보세요',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadGoals,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        itemCount: _goals.length,
+        itemBuilder: (_, index) => _GoalCard(
+          goal: _goals[index],
+          onTap: () => _navigateToGoalDetail(_goals[index]),
+        ),
       ),
     );
   }
+}
 
-  Widget _buildGoalCard(Goal goal) {
+/// 목표 카드 위젯 (분리하여 재사용 가능)
+class _GoalCard extends StatelessWidget {
+  final Goal goal;
+  final VoidCallback onTap;
+
+  const _GoalCard({
+    required this.goal,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final progressPercentage = goal.progressPercentage;
     final isCompleted = goal.isCompleted;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: isCompleted
-            ? Border.all(color: const Color(0xFF20C997), width: 2)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      decoration: isCompleted
+          ? AppDecorations.cardWithBorder(AppColors.success)
+          : AppDecorations.card,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _navigateToGoalDetail(goal),
-          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -188,135 +146,76 @@ class _GoalListScreenState extends State<GoalListScreen> {
                     Expanded(
                       child: Text(
                         goal.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.4,
-                        ),
+                        style: AppTextStyles.heading3,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (isCompleted)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF20C997).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.check_circle,
-                              size: 14,
-                              color: Color(0xFF20C997),
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              '완료',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF20C997),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    if (isCompleted) const CompletedBadge(),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
 
                 // 진행도 텍스트
                 Row(
                   children: [
                     Text(
                       '${goal.currentProgress}',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF6366F1),
-                      ),
+                      style: AppTextStyles.numberSmall,
                     ),
                     Text(
                       ' / ${goal.totalTargetAmount} ${goal.targetUnit}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey.shade600,
+                      style: AppTextStyles.body1.copyWith(
+                        color: AppColors.textSecondary,
                       ),
                     ),
                     const Spacer(),
                     Text(
-                      '${progressPercentage.toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade700,
+                      NumberUtils.formatPercentage(progressPercentage),
+                      style: AppTextStyles.label.copyWith(
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
 
                 // 진행률 바
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                   child: LinearProgressIndicator(
                     value: progressPercentage / 100,
                     minHeight: 8,
-                    backgroundColor: Colors.grey.shade200,
+                    backgroundColor: AppColors.divider,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      isCompleted
-                          ? const Color(0xFF20C997)
-                          : const Color(0xFF6366F1),
+                      isCompleted ? AppColors.success : AppColors.primary,
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
 
                 // 기간 정보
-                if (goal.startDate != null || goal.endDate != null)
+                if (goal.startDate != null || goal.endDate != null) ...[
+                  const SizedBox(height: AppSpacing.md),
                   Row(
                     children: [
                       Icon(
                         Icons.calendar_today_outlined,
                         size: 14,
-                        color: Colors.grey.shade500,
+                        color: AppColors.textHint,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: AppSpacing.xs + 2),
                       Text(
-                        _formatDateRange(goal.startDate, goal.endDate),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
-                        ),
+                        AppDateUtils.formatDateRange(goal.startDate, goal.endDate),
+                        style: AppTextStyles.caption,
                       ),
                     ],
                   ),
+                ],
               ],
             ),
           ),
         ),
       ),
     );
-  }
-
-  String _formatDateRange(DateTime? start, DateTime? end) {
-    if (start == null && end == null) return '';
-    if (start != null && end != null) {
-      return '${_formatDate(start)} ~ ${_formatDate(end)}';
-    } else if (start != null) {
-      return '${_formatDate(start)} ~';
-    } else {
-      return '~ ${_formatDate(end!)}';
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
   }
 }

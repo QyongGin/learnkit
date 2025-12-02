@@ -43,9 +43,13 @@ class Card {
 }
 
 /// 카드 난이도 (백엔드 Enum과 일치)
+// ignore: constant_identifier_names
 enum CardDifficulty {
+  // ignore: constant_identifier_names
   EASY,
+  // ignore: constant_identifier_names
   NORMAL,
+  // ignore: constant_identifier_names
   HARD,
 }
 

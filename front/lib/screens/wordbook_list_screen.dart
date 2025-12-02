@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 import '../models/wordbook.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/common_widgets.dart';
 import '../widgets/wordbook_card.dart';
 import 'wordbook_form_screen.dart';
 import 'wordbook_detail_screen.dart';
@@ -116,15 +118,12 @@ class _WordBookListScreenState extends State<WordBookListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         elevation: 0,
-        title: const Text(
+        title: Text(
           '단어장',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
+          style: AppTextStyles.heading2.copyWith(
+            color: AppColors.textPrimary,
           ),
         ),
         centerTitle: true,
@@ -133,7 +132,7 @@ class _WordBookListScreenState extends State<WordBookListScreen> {
         actions: [
           // 추가 버튼
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.black87),
+            icon: Icon(Icons.add, color: AppColors.textPrimary),
             onPressed: _showAddWordBookDialog,
             tooltip: '단어장 추가',
           ),
@@ -145,72 +144,35 @@ class _WordBookListScreenState extends State<WordBookListScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const LoadingIndicator();
     }
 
     if (_errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(
-              '오류가 발생했습니다',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _errorMessage!,
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _loadWordBooks,
-              icon: const Icon(Icons.refresh),
-              label: const Text('다시 시도'),
-            ),
-          ],
-        ),
+      return ErrorView(
+        message: _errorMessage!,
+        onRetry: _loadWordBooks,
       );
     }
 
     if (_wordBooks.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.book_outlined, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              '단어장이 없습니다',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '오른쪽 상단의 + 버튼을 눌러\n새 단어장을 만들어보세요',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade500,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+      return EmptyState(
+        icon: Icons.book_outlined,
+        title: '단어장이 없습니다',
+        subtitle: '오른쪽 상단의 + 버튼을 눌러\n새 단어장을 만들어보세요',
       );
     }
 
     return RefreshIndicator(
       onRefresh: _loadWordBooks,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         itemCount: _wordBooks.length,
         itemBuilder: (context, index) {
           final wordBook = _wordBooks[index];
           return Padding(
-            padding: EdgeInsets.only(bottom: index < _wordBooks.length - 1 ? 12 : 0),
+            padding: EdgeInsets.only(
+              bottom: index < _wordBooks.length - 1 ? AppSpacing.md : 0,
+            ),
             child: WordBookCard(
               wordBook: wordBook,
               onTap: () => _onWordBookTap(wordBook),

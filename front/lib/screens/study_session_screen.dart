@@ -1,9 +1,14 @@
+// dart:async - 비동기 프로그래밍 (Timer, Future 등)
 import 'dart:async';
+// dart:math - 수학 함수 (Random, min, max 등)
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
+import '../widgets/common_widgets.dart';
 import '../models/card.dart' as model;
 import '../models/wordbook.dart';
 import '../services/api_service.dart';
+import '../services/logger_service.dart';
 
 /// Anki 스타일 학습 세션 화면 (토스 디자인)
 class StudySessionScreen extends StatefulWidget {
@@ -28,7 +33,7 @@ class _StudySessionScreenState extends State<StudySessionScreen>
   SessionStartResponse? _sessionInfo;
   int? _sessionId; // 실제 백엔드 세션 ID
   int _reviewedCount = 0;
-  int _userId = 1; // 기본 사용자 ID
+  final int _userId = 1; // 기본 사용자 ID
 
   // 학습 시작 전 통계 (before)
   int _beforeEasyCount = 0;
@@ -96,7 +101,7 @@ class _StudySessionScreenState extends State<StudySessionScreen>
       // 기존 세션이 있으면 이어하기, 없으면 새로 시작
       if (widget.existingSessionId != null) {
         // 이어하기: 기존 세션 ID 사용
-        print('🔄 기존 세션 이어하기: sessionId=${widget.existingSessionId}');
+        Log.d('🔄 기존 세션 이어하기: sessionId=${widget.existingSessionId}');
         _sessionId = widget.existingSessionId;
         
         // 통계 정보는 현재 상태로 설정
@@ -108,7 +113,7 @@ class _StudySessionScreenState extends State<StudySessionScreen>
         );
       } else {
         // 새로 시작: 단어장 학습 세션 API 호출
-        print('🎯 새 세션 시작: wordBookId=${widget.wordBook.id}');
+        Log.d('🎯 새 세션 시작: wordBookId=${widget.wordBook.id}');
         final session = await ApiService.startWordBookSession(
           userId: _userId,
           wordBookId: widget.wordBook.id,
@@ -119,7 +124,7 @@ class _StudySessionScreenState extends State<StudySessionScreen>
         
         _sessionId = session.id;
         
-        print('✅ 세션 생성 완료: sessionId=$_sessionId');
+        Log.d('✅ 세션 생성 완료: sessionId=$_sessionId');
         
         // 통계 정보 설정
         _sessionInfo = SessionStartResponse(
@@ -244,10 +249,10 @@ class _StudySessionScreenState extends State<StudySessionScreen>
       // 학습 후 통계 가져오기
       final afterStats = await ApiService.fetchWordBookStatistics(widget.wordBook.id);
 
-      print('✅ 세션 종료 시작: sessionId=$_sessionId');
-      print('난이도 변화: HARD ${_beforeHardCount}→${afterStats.hardCount}, '
-            'NORMAL ${_beforeNormalCount}→${afterStats.normalCount}, '
-            'EASY ${_beforeEasyCount}→${afterStats.easyCount}');
+      Log.d('✅ 세션 종료 시작: sessionId=$_sessionId');
+      Log.d('난이도 변화: HARD $_beforeHardCount→${afterStats.hardCount}, '
+            'NORMAL $_beforeNormalCount→${afterStats.normalCount}, '
+            'EASY $_beforeEasyCount→${afterStats.easyCount}');
 
       // 세션 종료 API 호출 (백엔드에서 시간 자동 계산)
       await ApiService.endWordBookSession(
@@ -257,9 +262,9 @@ class _StudySessionScreenState extends State<StudySessionScreen>
         easyCount: afterStats.easyCount,
       );
 
-      print('✅ 세션 종료 완료');
+      Log.d('✅ 세션 종료 완료');
     } catch (e) {
-      print('❌ 세션 종료 실패: $e');
+      Log.d('❌ 세션 종료 실패: $e');
     }
   }
 
@@ -379,35 +384,17 @@ class _StudySessionScreenState extends State<StudySessionScreen>
     final change = after - before;
     return Row(
       children: [
-        // 난이도 라벨
         SizedBox(
           width: 60,
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w600),
-          ),
+          child: Text(label, style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w600)),
         ),
         const SizedBox(width: 8),
-        // Before 값
-        Text(
-          '$before',
-          style: TextStyle(fontSize: 15, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
-        ),
+        Text('$before', style: TextStyle(fontSize: 15, color: Colors.grey.shade700, fontWeight: FontWeight.w500)),
         const SizedBox(width: 8),
-        // 우측 화살표
-        Icon(
-          Icons.arrow_forward,
-          size: 16,
-          color: Colors.grey.shade400,
-        ),
+        Icon(Icons.arrow_forward, size: 16, color: Colors.grey.shade400),
         const SizedBox(width: 8),
-        // After 값
-        Text(
-          '$after',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color),
-        ),
+        Text('$after', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
         const SizedBox(width: 8),
-        // 변화량 (항상 표시, 열 맞춤을 위해)
         SizedBox(
           width: 50,
           child: Text(
@@ -415,11 +402,7 @@ class _StudySessionScreenState extends State<StudySessionScreen>
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: change > 0
-                  ? const Color(0xFF10B981)
-                  : change < 0
-                      ? const Color(0xFFEF4444)
-                      : Colors.grey.shade500,
+              color: change > 0 ? const Color(0xFF10B981) : change < 0 ? const Color(0xFFEF4444) : Colors.grey.shade500,
             ),
           ),
         ),
@@ -447,62 +430,54 @@ class _StudySessionScreenState extends State<StudySessionScreen>
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // 뒤로가기 버튼 클릭 시 세션 종료 확인
-        await _showExitDialog();
-        return false; // 자동으로 pop하지 않음 (다이얼로그에서 처리)
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          await _showExitDialog();
+        }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF9FAFB),
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surface,
           elevation: 0,
           automaticallyImplyLeading: false,
         title: Row(
           children: [
-            // 타이머 표시
-            Icon(Icons.timer_outlined, size: 18, color: Colors.grey.shade700),
-            const SizedBox(width: 6),
+            Icon(Icons.timer_outlined, size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: AppSpacing.xs),
             Text(
               _formatDuration(_elapsedTime),
-              style: TextStyle(
-                color: Colors.grey.shade800,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTextStyles.label.copyWith(color: AppColors.textSecondary),
             ),
-            const SizedBox(width: 16),
-            // 복습 개수 표시
-            Icon(Icons.credit_card, size: 18, color: Colors.grey.shade700),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.lg),
+            Icon(Icons.credit_card, size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: AppSpacing.xs),
             Text(
               '복습한 카드 $_reviewedCount개',
-              style: TextStyle(
-                color: Colors.grey.shade800,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTextStyles.label.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
         actions: [
-          // 종료 버튼
           TextButton.icon(
             onPressed: _showExitDialog,
             icon: const Icon(Icons.stop_circle_outlined, size: 20),
             label: const Text('종료'),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red.shade600,
-            ),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
           ),
           const SizedBox(width: 8),
         ],
       ),
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const LoadingIndicator()
             : _currentCard == null
-                ? const Center(child: Text('카드가 없습니다'))
+                ? const EmptyState(
+                    icon: Icons.library_books,
+                    title: '카드가 없습니다',
+                    subtitle: '단어장에 카드를 추가해주세요',
+                  )
                 : _buildStudyContent(),
       ),
     );
@@ -511,23 +486,16 @@ class _StudySessionScreenState extends State<StudySessionScreen>
   Widget _buildStudyContent() {
     return Column(
       children: [
-        // 진행률 바
         _buildProgressBar(),
-
-        const SizedBox(height: 24),
-
-        // 카드
+        const SizedBox(height: AppSpacing.xxl),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: _buildFlipCard(),
           ),
         ),
-
-        // 하단 액션 버튼들
         _buildActionButtons(),
-
-        const SizedBox(height: 32),
+        const SizedBox(height: AppSpacing.xxxl),
       ],
     );
   }
@@ -540,13 +508,13 @@ class _StudySessionScreenState extends State<StudySessionScreen>
 
     return Container(
       height: 4,
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(2),
         child: LinearProgressIndicator(
           value: progress,
-          backgroundColor: const Color(0xFFE5E7EB),
-          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+          backgroundColor: AppColors.divider,
+          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
         ),
       ),
     );
@@ -583,168 +551,24 @@ class _StudySessionScreenState extends State<StudySessionScreen>
 
   /// 카드 앞면
   Widget _buildCardFront() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // 상단 라벨
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(24),
-                topRight: Radius.circular(24),
-              ),
-            ),
-            child: const Text(
-              '질문',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF6B7280),
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-
-          // 카드 내용
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              child: Center(
-                child: SingleChildScrollView(
-                  child: Text(
-                    _currentCard!.frontText,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // 하단 힌트
-          Container(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.touch_app,
-                  size: 20,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '답을 확인하려면 탭하세요',
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return FlashCard(
+      label: '질문',
+      content: _currentCard!.frontText,
+      labelBgColor: const Color(0xFFF9FAFB),
+      labelTextColor: const Color(0xFF6B7280),
+      hintText: '답을 확인하려면 탭하세요',
+      hintIcon: Icons.touch_app,
     );
   }
 
   /// 카드 뒷면
   Widget _buildCardBack() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // 상단 라벨
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF0F9FF),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(24),
-                topRight: Radius.circular(24),
-              ),
-            ),
-            child: const Text(
-              '정답',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF0284C7),
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-
-          // 카드 내용
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              child: Center(
-                child: SingleChildScrollView(
-                  child: Text(
-                    _currentCard!.backText,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87,
-                      height: 1.6,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // 하단 힌트
-          Container(
-            padding: const EdgeInsets.all(20),
-            child: Text(
-              '아래에서 난이도를 선택하세요',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return FlashCard(
+      label: '정답',
+      content: _currentCard!.backText,
+      labelBgColor: const Color(0xFFF0F9FF),
+      labelTextColor: const Color(0xFF0284C7),
+      hintText: '아래에서 난이도를 선택하세요',
     );
   }
 
@@ -796,72 +620,34 @@ class _StudySessionScreenState extends State<StudySessionScreen>
           Row(
             children: [
               Expanded(
-                child: _buildDifficultyButton(
+                child: DifficultyButton(
                   label: '어려움',
                   color: const Color(0xFFEF4444),
-                  difficulty: model.CardDifficulty.HARD,
                   icon: Icons.close,
+                  onPressed: () => _selectDifficulty(model.CardDifficulty.HARD),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildDifficultyButton(
+                child: DifficultyButton(
                   label: '보통',
                   color: const Color(0xFFF59E0B),
-                  difficulty: model.CardDifficulty.NORMAL,
                   icon: Icons.remove,
+                  onPressed: () => _selectDifficulty(model.CardDifficulty.NORMAL),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildDifficultyButton(
+                child: DifficultyButton(
                   label: '쉬움',
                   color: const Color(0xFF10B981),
-                  difficulty: model.CardDifficulty.EASY,
                   icon: Icons.check,
+                  onPressed: () => _selectDifficulty(model.CardDifficulty.EASY),
                 ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  /// 난이도 선택 버튼
-  Widget _buildDifficultyButton({
-    required String label,
-    required Color color,
-    required model.CardDifficulty difficulty,
-    required IconData icon,
-  }) {
-    return SizedBox(
-      height: 64,
-      child: ElevatedButton(
-        onPressed: () => _selectDifficulty(difficulty),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

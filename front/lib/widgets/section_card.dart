@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 
 /// 카드 형태의 섹션 위젯
 class SectionCard extends StatelessWidget {
@@ -20,51 +21,31 @@ class SectionCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+        margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.sm,
         ),
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        decoration: AppDecorations.card,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
+                Text(title, style: AppTextStyles.heading3),
                 if (onTap != null)
-                  const Icon(
+                  Icon(
                     Icons.chevron_right,
-                    color: Colors.grey,
+                    color: AppColors.textHint,
                   ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             if (customContent != null)
               customContent!
             else
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-              ),
+              Text(subtitle, style: AppTextStyles.body2),
           ],
         ),
       ),
@@ -101,9 +82,9 @@ class CircularProgressWidget extends StatelessWidget {
                   child: CircularProgressIndicator(
                     value: progress,
                     strokeWidth: 6,
-                    backgroundColor: Colors.grey[300],
+                    backgroundColor: AppColors.divider,
                     valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF00FF00),
+                      AppColors.success,
                     ),
                   ),
                 ),
@@ -111,17 +92,13 @@ class CircularProgressWidget extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: AppSpacing.lg),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               '$completed/$total',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
+              style: AppTextStyles.label,
             ),
             Row(
               children: List.generate(
@@ -133,8 +110,8 @@ class CircularProgressWidget extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: index < completed
-                        ? const Color(0xFF00FF00)
-                        : Colors.grey[300],
+                        ? AppColors.success
+                        : AppColors.divider,
                   ),
                 ),
               ),
@@ -162,20 +139,17 @@ class LinearProgressWidget extends StatelessWidget {
       children: [
         Text(
           '진행도 $percentage%',
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.grey,
-          ),
+          style: AppTextStyles.body2,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           child: LinearProgressIndicator(
             value: percentage / 100,
             minHeight: 20,
-            backgroundColor: Colors.grey[300],
+            backgroundColor: AppColors.divider,
             valueColor: const AlwaysStoppedAnimation<Color>(
-              Color(0xFF00FF00),
+              AppColors.success,
             ),
           ),
         ),

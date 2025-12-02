@@ -47,12 +47,13 @@ class SupabaseService {
            ),
         );
 
-    // Public URL 생성 및 반환
+    // Public URL 생성 (캐시 무효화 파라미터 추가)
     final String publicUrl = _client.storage
         .from(_profileBucket)
         .getPublicUrl(filePath);
 
-    return publicUrl;
+    // 브라우저 캐시 우회를 위한 타임스탬프 추가
+    return '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
   }
 
   /// 프로필 이미지 삭제

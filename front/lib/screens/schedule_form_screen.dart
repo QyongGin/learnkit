@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+// intl: 날짜/시간 포맷팅 (DateFormat)
 import 'package:intl/intl.dart';
+import '../config/app_theme.dart';
 import '../models/schedule.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/common_widgets.dart';
 
 class ScheduleFormScreen extends StatefulWidget {
   final Schedule? schedule; // null이면 새로운 일정 생성, 있으면 수정
@@ -198,33 +201,32 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         elevation: 0,
         title: Text(
           widget.schedule == null ? '새 일정' : '일정 수정',
-          style: const TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
+          style: AppTextStyles.heading3.copyWith(
+            color: AppColors.textPrimary,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black87),
+          icon: Icon(Icons.close, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           if (widget.schedule != null)
             IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
+              icon: Icon(Icons.delete, color: AppColors.error),
               onPressed: _isLoading ? null : _deleteSchedule,
             ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingIndicator()
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -233,17 +235,17 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
                     // 제목 입력
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                       child: TextFormField(
                         controller: _titleController,
                         decoration: const InputDecoration(
                           hintText: '일정 제목',
                           border: InputBorder.none,
                         ),
-                        style: const TextStyle(fontSize: 18),
+                        style: AppTextStyles.heading3,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return '제목을 입력해주세요';
@@ -252,15 +254,15 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
 
                     // 설명 입력
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                       child: TextFormField(
                         controller: _descriptionController,
                         decoration: const InputDecoration(
@@ -270,35 +272,32 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
                         maxLines: 3,
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.xxl),
 
                     // 시간 선택
-                    const Text(
+                    Text(
                       '시간',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: AppTextStyles.label,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Row(
                       children: [
                         Expanded(
                           child: InkWell(
                             onTap: () => _selectTime(true),
                             child: Container(
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.all(AppSpacing.lg),
                               decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.access_time, color: Color(0xFF6366F1)),
-                                  const SizedBox(width: 12),
+                                  Icon(Icons.access_time, color: AppColors.primary),
+                                  const SizedBox(width: AppSpacing.md),
                                   Text(
                                     _formatTime(_startTime),
-                                    style: const TextStyle(fontSize: 16),
+                                    style: AppTextStyles.body1,
                                   ),
                                 ],
                               ),
@@ -306,25 +305,25 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
                           ),
                         ),
                         const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                           child: Text('~'),
                         ),
                         Expanded(
                           child: InkWell(
                             onTap: () => _selectTime(false),
                             child: Container(
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.all(AppSpacing.lg),
                               decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.access_time, color: Color(0xFF6366F1)),
-                                  const SizedBox(width: 12),
+                                  Icon(Icons.access_time, color: AppColors.primary),
+                                  const SizedBox(width: AppSpacing.md),
                                   Text(
                                     _formatTime(_endTime),
-                                    style: const TextStyle(fontSize: 16),
+                                    style: AppTextStyles.body1,
                                   ),
                                 ],
                               ),
@@ -333,7 +332,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.xxl),
 
                     // 완료 체크 (수정 모드에서만)
                     if (widget.schedule != null)
@@ -345,11 +344,11 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
                             _isCompleted = value ?? false;
                           });
                         },
-                        activeColor: const Color(0xFF00FF00),
+                        activeColor: AppColors.success,
                         contentPadding: EdgeInsets.zero,
                       ),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: AppSpacing.xxxl),
 
                     // 저장 버튼
                     SizedBox(
@@ -358,18 +357,14 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _saveSchedule,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6366F1),
+                          backgroundColor: AppColors.primary,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(AppRadius.md),
                           ),
                         ),
                         child: Text(
                           widget.schedule == null ? '일정 추가' : '수정 완료',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                          style: AppTextStyles.button,
                         ),
                       ),
                     ),

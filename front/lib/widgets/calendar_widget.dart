@@ -1,7 +1,21 @@
+// Flutter 기본 위젯
 import 'package:flutter/material.dart';
+// table_calendar: 커스텀 캘린더 UI 패키지
+// - 월/주/일 뷰 전환 가능
+// - 이벤트 마커 표시 가능
+// - 날짜 선택, 스와이프 등 제스처 지원
 import 'package:table_calendar/table_calendar.dart';
+// intl: 날짜/시간 포맷팅 및 다국어 지원 패키지
+// - DateFormat('yyyy년 M월').format(date) 로 날짜 형식 변환
 import 'package:intl/intl.dart';
+// 일정 데이터 모델
 import '../models/schedule.dart';
+
+/// 캘린더 위젯
+/// 
+/// 월간 캘린더를 표시하고 일정이 있는 날짜에 점 표시합니다.
+/// 날짜 탭: 해당 날짜 일정 목록 표시
+/// 날짜 길게 누르기: 새 일정 추가
 
 class CalendarWidget extends StatefulWidget {
   final Function(DateTime) onDaySelected;
@@ -44,7 +58,7 @@ class _CalendarWidgetState extends State<CalendarWidget> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -71,7 +85,7 @@ class _CalendarWidgetState extends State<CalendarWidget> {
         ),
         calendarStyle: CalendarStyle(
           todayDecoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.3),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
             shape: BoxShape.circle,
           ),
           selectedDecoration: const BoxDecoration(
@@ -149,7 +163,7 @@ class ScheduleListWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -230,7 +244,7 @@ class ScheduleListWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 5,
                 offset: const Offset(0, 2),
               ),
