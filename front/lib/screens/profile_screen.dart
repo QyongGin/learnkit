@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
+// dart:io - 파일 시스템 접근 (File 클래스)
+import 'dart:io';
+// image_picker: 갤러리/카메라에서 이미지 선택
+import 'package:image_picker/image_picker.dart';
+// logger: 콘솔 로깅 (디버깅용)
+import 'package:logger/logger.dart';
+
+import '../config/app_theme.dart';
+import '../widgets/common_widgets.dart';
+
 import '../models/user.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
-import 'package:logger/logger.dart'; // logger 패키지 
-import 'dart:io'; // 파일 처리 (이미지 파일 다루기)
-import 'package:image_picker/image_picker.dart'; // 이미지 선택 (갤러리/카메라)';
-import '../services/supabase_service.dart'; // Supabase 업로드 서비스 
+import '../services/supabase_service.dart';
 
-final logger = Logger(); // logger 인스턴스 try-catch 예외용
+final logger = Logger();
 
 /// 프로필 화면 
 class ProfileScreen extends StatefulWidget {
@@ -24,17 +31,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   int _userId = 1;
 
-  // 통계 데이터
-  int _totalWordBooks = 0;
-  int _totalCards = 0;
-  int _easyCards = 0;
-  int _normalCards = 0;
-  int _hardCards = 0;
-
-  // 이미지 업로드 관련 변수 추가
-  File? _selectedImage; // 선택한 이미지 파일. "?"는 nullable. null을 가질 수 있다는 의미.
+  // 이미지 업로드 관련 변수
+  File? _selectedImage; // 선택한 이미지 파일
   bool _isUploading = false; // 업로드 상태
   String? _profileImageUrl; // Supabase에서 받은 이미지 URL
+  bool _imageLoadError = false; // 이미지 로딩 에러 여부
   final ImagePicker _picker = ImagePicker(); // 갤러리/카메라 열기 도구
 
   /// 갤러리에서 이미지 선택
@@ -139,6 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfile() async {
     setState(() {
       _isLoading = true;
+      _imageLoadError = false;
     });
 
     try {
@@ -150,38 +152,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final user = await ApiService.fetchUserById(_userId);
 
       // DB에 저장된 프로필 이미지 URL 가져오기
-      if (user.profileImageUrl != null) {
-        setState(() {
-          _profileImageUrl = user.profileImageUrl;
-        });
-      }
-
-      // 단어장 통계 로드
-      final wordBooks = await ApiService.fetchWordBooks(_userId);
-
-      int totalCards = 0;
-      int easy = 0;
-      int normal = 0;
-      int hard = 0;
-
-      for (var wordBook in wordBooks) {
-        final stats = await ApiService.fetchWordBookStatistics(wordBook.id);
-        totalCards += stats.totalCount;
-        easy += stats.easyCount;
-        normal += stats.normalCount;
-        hard += stats.hardCount;
+      if (user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty) {
+        _profileImageUrl = user.profileImageUrl;
       }
 
       setState(() {
         _user = user;
-        _totalWordBooks = wordBooks.length;
-        _totalCards = totalCards;
-        _easyCards = easy;
-        _normalCards = normal;
-        _hardCards = hard;
         _isLoading = false;
       });
     } catch (e) {
+      logger.e('프로필 로드 실패', error: e);
       setState(() {
         _isLoading = false;
       });
@@ -196,54 +176,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          '프로필',
-          style: TextStyle(
-            color: Color(0xFF191F28),
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-          ),
-        ),
+        title: Text('프로필', style: AppTextStyles.heading2),
         centerTitle: false,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingIndicator()
           : RefreshIndicator(
               onRefresh: _loadProfile,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(AppSpacing.xl),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 사용자 정보 카드
                     _buildUserCard(),
-                    const SizedBox(height: 24),
-
-                    // 학습 통계 섹션
-                    const Text(
-                      '학습 통계',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF191F28),
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 단어장/카드 통계
-                    _buildStatsCard(),
-                    const SizedBox(height: 12),
-
-                    // 난이도별 통계
-                    _buildDifficultyStats(),
                   ],
                 ),
               ),
@@ -255,44 +206,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildUserCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(AppSpacing.xxl),
+      decoration: AppDecorations.card,
       child: Column(
         children: [
-          // 프로필 아이콘
           _buildProfileImage(),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
 
-          // 닉네임
           Text(
             _user?.nickname ?? '사용자',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF191F28),
-              letterSpacing: -0.5,
-            ),
+            style: AppTextStyles.heading1,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xs),
 
-          // 이메일
           Text(
             _user?.email ?? '',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-              letterSpacing: -0.3,
-            ),
+            style: AppTextStyles.body2,
           ),
         ],
       ),
@@ -311,32 +240,13 @@ Widget _buildProfileImage() {
           height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: _selectedImage == null && _profileImageUrl == null
+            gradient: (_selectedImage == null && _profileImageUrl == null) || _imageLoadError
                 ? const LinearGradient(
                     colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                   )
                 : null,
-            image: _selectedImage != null || _profileImageUrl != null
-                ? DecorationImage(
-                    image: _selectedImage != null
-                        ? FileImage(_selectedImage!) // 선택한 이미지
-                        : NetworkImage(_profileImageUrl!) as ImageProvider, // URL 이미지
-                    fit: BoxFit.cover,
-                  )
-                : null,
           ),
-          child: _selectedImage == null && _profileImageUrl == null
-              ? Center(
-                  child: Text(
-                    _user?.nickname.substring(0, 1).toUpperCase() ?? 'U',
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                )
-              : null,
+          child: _buildProfileImageContent(),
         ),
         
         // 업로드 중 로딩 표시
@@ -378,184 +288,67 @@ Widget _buildProfileImage() {
   );
 }
 
-  /// 단어장/카드 통계 카드
-  Widget _buildStatsCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatItem(
-              label: '단어장',
-              value: '$_totalWordBooks',
-              color: const Color(0xFF6366F1),
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            color: Colors.grey.shade200,
-          ),
-          Expanded(
-            child: _buildStatItem(
-              label: '총 카드',
-              value: '$_totalCards',
-              color: const Color(0xFF8B5CF6),
-            ),
-          ),
-        ],
-      ),
-    );
+  /// 프로필 이미지 내용 (이미지 또는 이니셜)
+  Widget _buildProfileImageContent() {
+    // 선택한 이미지가 있으면 표시
+    if (_selectedImage != null) {
+      return ClipOval(
+        child: Image.file(
+          _selectedImage!,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    
+    // URL 이미지가 있고 에러가 없으면 네트워크 이미지 표시
+    if (_profileImageUrl != null && !_imageLoadError) {
+      return ClipOval(
+        child: Image.network(
+          _profileImageUrl!,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return const Center(
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            logger.e('이미지 로드 실패', error: error);
+            // 에러 발생 시 이니셜 표시
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() => _imageLoadError = true);
+              }
+            });
+            return _buildInitialAvatar();
+          },
+        ),
+      );
+    }
+    
+    // 이미지가 없으면 이니셜 표시
+    return _buildInitialAvatar();
   }
 
-  Widget _buildStatItem({
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: color,
-            letterSpacing: -0.5,
-          ),
+  /// 이니셜 아바타
+  Widget _buildInitialAvatar() {
+    return Center(
+      child: Text(
+        _user?.nickname.isNotEmpty == true 
+            ? _user!.nickname.substring(0, 1).toUpperCase() 
+            : 'U',
+        style: const TextStyle(
+          fontSize: 36,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey.shade600,
-            letterSpacing: -0.3,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 난이도별 통계
-  Widget _buildDifficultyStats() {
-    return Column(
-      children: [
-        _buildDifficultyCard(
-          label: '쉬움',
-          count: _easyCards,
-          color: const Color(0xFF20C997),
-          icon: Icons.sentiment_satisfied_alt,
-        ),
-        const SizedBox(height: 12),
-        _buildDifficultyCard(
-          label: '보통',
-          count: _normalCards,
-          color: const Color(0xFF3182F6),
-          icon: Icons.sentiment_neutral,
-        ),
-        const SizedBox(height: 12),
-        _buildDifficultyCard(
-          label: '어려움',
-          count: _hardCards,
-          color: const Color(0xFFFF6B6B),
-          icon: Icons.sentiment_dissatisfied,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDifficultyCard({
-    required String label,
-    required int count,
-    required Color color,
-    required IconData icon,
-  }) {
-    final percentage = _totalCards > 0
-        ? (count / _totalCards * 100).toStringAsFixed(1)
-        : '0.0';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 1.5,
-        ),
-      ),
-      child: Row(
-        children: [
-          // 아이콘
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-
-          // 라벨과 카운트
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$count개 · $percentage%',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade600,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 진행 바
-          SizedBox(
-            width: 60,
-            child: LinearProgressIndicator(
-              value: _totalCards > 0 ? count / _totalCards : 0,
-              backgroundColor: color.withValues(alpha: 0.1),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-              borderRadius: BorderRadius.circular(4),
-              minHeight: 6,
-            ),
-          ),
-        ],
       ),
     );
   }
