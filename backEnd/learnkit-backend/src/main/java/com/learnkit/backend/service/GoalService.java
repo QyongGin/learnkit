@@ -2,16 +2,21 @@ package com.learnkit.backend.service;
 
 import com.learnkit.backend.domain.Goal;
 import com.learnkit.backend.domain.User;
+import com.learnkit.backend.domain.WeeklyGoalBaseline;
 import com.learnkit.backend.dto.GoalDto;
 import com.learnkit.backend.exception.custom.GoalNotFoundException;
 import com.learnkit.backend.exception.custom.UserNotFoundException;
 import com.learnkit.backend.repository.GoalRepository;
 import com.learnkit.backend.repository.UserRepository;
+import com.learnkit.backend.repository.WeeklyGoalBaselineRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.temporal.WeekFields;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Goal 비즈니스 로직을 담당하는 Service
@@ -23,6 +28,7 @@ public class GoalService {
 
     private final GoalRepository goalRepository;
     private final UserRepository userRepository;
+    private final WeeklyGoalBaselineRepository weeklyGoalBaselineRepository;
 
     /**
      * 새로운 목표를 생성
@@ -40,7 +46,29 @@ public class GoalService {
         goal.setUser(user);
 
         Goal savedGoal = goalRepository.save(goal);
+        
+        // 목표 생성 시 이번 주 기준선도 함께 생성
+        createGoalBaseline(user, savedGoal);
+        
         return new GoalDto.Response(savedGoal);
+    }
+    
+    /**
+     * 목표에 대한 주간 기준선 생성
+     */
+    private void createGoalBaseline(User user, Goal goal) {
+        LocalDate today = LocalDate.now();
+        int year = today.getYear();
+        int month = today.getMonthValue();
+        int weekNumber = today.get(WeekFields.of(Locale.getDefault()).weekOfMonth());
+        
+        WeeklyGoalBaseline baseline = new WeeklyGoalBaseline(
+                user, goal, year, month, weekNumber,
+                goal.getCurrentProgress(),
+                goal.getTargetUnit(),
+                goal.getTitle()
+        );
+        weeklyGoalBaselineRepository.save(baseline);
     }
 
     /**
