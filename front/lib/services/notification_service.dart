@@ -58,12 +58,6 @@ class NotificationService {
         onDidReceiveNotificationResponse: _onNotificationTap,
       );
 
-      // Android 13+ 알림 권한 요청
-      await _notifications
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
-
       _initialized = true;
       debugPrint('✅ 알림 서비스 초기화 완료');
     } catch (e) {

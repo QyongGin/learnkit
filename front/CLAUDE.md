@@ -11,12 +11,63 @@ LearnKit Flutter 프론트엔드 - 학습 일정 관리 애플리케이션의 �
 - Dart SDK 3.9.2+
 - Material Design 3
 - HTTP 클라이언트 (http 패키지)
+- Provider (상태 관리)
 
 **주요 기능:**
-- 단어장(WordBook) 관리 및 학습
-- 플래시카드(Card) 시스템
-- 스케줄 관리
-- 학습 통계 및 대시보드
+- 🎯 목표 기반 포모도로 타이머 (센서 감지)
+- 📚 단어장(WordBook) 관리 및 우선순위 기반 학습
+- 🃏 플래시카드(Card) 시스템
+- 📅 스케줄 관리
+- 📊 학습 통계 및 주간 요약
+
+## Architecture Diagram
+
+```mermaid
+flowchart TB
+    subgraph Screens["📱 Screens (18개)"]
+        Home[HomeScreen]
+        Pomodoro[PomodoroScreen]
+        Study[StudyScreen]
+        WordBook[WordBookListScreen]
+        Goal[GoalListScreen]
+        Settings[SettingsScreen]
+    end
+    
+    subgraph Widgets["🧩 Widgets (6개)"]
+        Common[common_widgets.dart]
+        Calendar[calendar_widget.dart]
+        Cards[word_card.dart]
+    end
+    
+    subgraph Services["⚙️ Services (5개)"]
+        API[ApiService]
+        Auth[AuthService]
+        Notif[NotificationService]
+        Supa[SupabaseService]
+        Logger[LoggerService]
+    end
+    
+    subgraph Providers["📦 Providers (1개)"]
+        SettingsP[SettingsProvider]
+    end
+    
+    subgraph Config["⚙️ Config (4개)"]
+        Theme[app_theme.dart]
+        Constants[constants.dart]
+        ApiConfig[api_config.dart]
+    end
+    
+    Screens --> Widgets
+    Screens --> Services
+    Screens --> Providers
+    Screens --> Config
+    Services -->|HTTP| Backend[(Spring Boot)]
+    Services -->|Image Upload| Supabase[(Supabase Storage)]
+    
+    style Screens fill:#E3F2FD
+    style Services fill:#E8F5E9
+    style Providers fill:#FFF3E0
+```
 
 ## Build & Run Commands
 
@@ -76,36 +127,102 @@ static String get baseUrl {
 - WiFi 재연결 시 IP가 변경될 수 있음 (`ifconfig` 명령으로 확인)
 - 시뮬레이터/에뮬레이터는 `localhost` 사용 가능
 
-## Architecture
+## Project Structure
 
-### Project Structure
-
-```
-lib/
-├── main.dart              # 앱 진입점, 테마 설정
-├── models/                # 데이터 모델
-│   ├── card.dart         # 플래시카드 모델
-│   ├── wordbook.dart     # 단어장 모델
-│   ├── schedule.dart     # 스케줄 모델
-│   └── home_data.dart    # 홈 화면 데이터 모델
-├── screens/               # 화면 위젯
-│   ├── home_screen.dart
-│   ├── wordbook_list_screen.dart
-│   ├── wordbook_detail_screen.dart
-│   ├── card_form_screen.dart
-│   ├── schedule_form_screen.dart
-│   └── study_screen.dart
-├── widgets/               # 재사용 가능한 위젯
-│   ├── word_card.dart
-│   ├── wordbook_card.dart
-│   ├── calendar_widget.dart
-│   └── section_card.dart
-└── services/              # 비즈니스 로직 & API
-    ├── api_service.dart
-    └── auth_service.dart
+```mermaid
+graph TB
+    subgraph lib["📁 lib/"]
+        main[main.dart]
+        
+        subgraph config["config/ (4개)"]
+            api_config[api_config.dart]
+            app_theme[app_theme.dart]
+            constants[constants.dart]
+        end
+        
+        subgraph models["models/ (8개)"]
+            card[card.dart]
+            wordbook[wordbook.dart]
+            goal[goal.dart]
+            schedule[schedule.dart]
+            home_data[home_data.dart]
+        end
+        
+        subgraph screens["screens/ (18개)"]
+            home_screen[home_screen.dart]
+            pomodoro_screen[pomodoro_screen.dart]
+            study_screen[study_screen.dart]
+            study_session_screen[study_session_screen.dart]
+            goal_list_screen[goal_list_screen.dart]
+            wordbook_list_screen[wordbook_list_screen.dart]
+            settings_screen[settings_screen.dart]
+            profile_screen[profile_screen.dart]
+        end
+        
+        subgraph widgets["widgets/ (6개)"]
+            common_widgets[common_widgets.dart]
+            calendar_widget[calendar_widget.dart]
+            word_card[word_card.dart]
+            section_card[section_card.dart]
+        end
+        
+        subgraph services["services/ (5개)"]
+            api_service[api_service.dart]
+            auth_service[auth_service.dart]
+            notification_service[notification_service.dart]
+            supabase_service[supabase_service.dart]
+            logger_service[logger_service.dart]
+        end
+        
+        subgraph providers["providers/ (1개)"]
+            settings_provider[settings_provider.dart]
+        end
+    end
+    
+    style lib fill:#f5f5f5
+    style config fill:#FFE0B2
+    style models fill:#C8E6C9
+    style screens fill:#BBDEFB
+    style widgets fill:#E1BEE7
+    style services fill:#B2DFDB
+    style providers fill:#FFCCBC
 ```
 
 ### Layer Responsibilities
+
+```mermaid
+flowchart LR
+    subgraph Presentation["🎨 Presentation"]
+        S[Screens]
+        W[Widgets]
+    end
+    
+    subgraph State["📦 State"]
+        P[Providers]
+    end
+    
+    subgraph Business["⚙️ Business"]
+        API[ApiService]
+        Auth[AuthService]
+        Notif[NotificationService]
+    end
+    
+    subgraph Data["💾 Data"]
+        M[Models]
+        Remote[Remote API]
+        Local[SharedPreferences]
+    end
+    
+    S --> W
+    S --> P
+    P --> Business
+    Business --> Data
+    
+    style Presentation fill:#BBDEFB
+    style State fill:#FFCCBC
+    style Business fill:#B2DFDB
+    style Data fill:#C8E6C9
+```
 
 **Models:** 데이터 구조 정의
 - JSON 직렬화/역직렬화 (`fromJson`, `toJson`)
@@ -128,6 +245,48 @@ lib/
 - 상태를 최소화하거나 제거
 
 ## API Service Pattern
+
+### HTTP 요청 흐름
+
+```mermaid
+sequenceDiagram
+    participant S as Screen
+    participant API as ApiService
+    participant H as HTTP Client
+    participant B as Backend
+    
+    S->>API: fetchWordBooks(userId)
+    API->>H: GET /users/{userId}/wordbooks
+    H->>B: HTTP Request
+    B-->>H: JSON Response
+    H-->>API: Response (200 OK)
+    API->>API: json.decode() → Model.fromJson()
+    API-->>S: List<WordBook>
+    
+    Note over S,API: 에러 발생 시 빈 리스트 반환
+```
+
+### HTTP Helper Methods
+
+```mermaid
+flowchart LR
+    subgraph ApiService["ApiService"]
+        GET["_get()"]
+        POST["_post()"]
+        PATCH["_patch()"]
+        DELETE["_delete()"]
+        DECODE["_decode()"]
+    end
+    
+    GET --> |200 OK| DECODE
+    POST --> |201 Created| DECODE
+    PATCH --> |200 OK| DECODE
+    DELETE --> |204 No Content| Return[Return void]
+    
+    DECODE --> Model[Model.fromJson]
+    
+    style ApiService fill:#B2DFDB
+```
 
 ### Request/Response Pattern
 
@@ -159,20 +318,81 @@ static Future<List<WordBook>> fetchWordBooks(int userId) async {
 1. **에러 핸들링**: 모든 API 호출은 try-catch로 감싸고 폴백 값 제공
 2. **타입 안정성**: JSON 파싱 후 즉시 모델 객체로 변환
 3. **상태 코드 검증**: 성공 시에만 파싱 시도 (200, 201, 204 등)
-4. **디버깅**: 개발 중 `print()` 문으로 요청/응답 확인 가능
+4. **디버깅**: 개발 중 `Log.d()` 로 요청/응답 확인 가능
 
 ### HTTP 메서드 매핑
 
-- **GET**: 조회 (200 OK)
-- **POST**: 생성 (201 Created)
-- **PATCH**: 부분 수정 (200 OK)
-- **DELETE**: 삭제 (204 No Content)
+```mermaid
+flowchart LR
+    subgraph Methods["HTTP Methods"]
+        GET["GET → 조회"]
+        POST["POST → 생성"]
+        PATCH["PATCH → 수정"]
+        DELETE["DELETE → 삭제"]
+    end
+    
+    subgraph Status["Status Codes"]
+        S200["200 OK"]
+        S201["201 Created"]
+        S204["204 No Content"]
+    end
+    
+    GET --> S200
+    POST --> S201
+    PATCH --> S200
+    DELETE --> S204
+```
 
 ## State Management
 
-### Current Pattern: setState
+### Provider 패턴
 
-현재 프로젝트는 Flutter의 기본 상태 관리(`setState`)를 사용합니다:
+```mermaid
+flowchart TB
+    subgraph App["MyApp"]
+        MP[MultiProvider]
+    end
+    
+    subgraph Providers["Providers"]
+        SP[SettingsProvider]
+    end
+    
+    subgraph Screens["Screens"]
+        Home[HomeScreen]
+        Settings[SettingsScreen]
+        Pomodoro[PomodoroScreen]
+    end
+    
+    MP --> SP
+    SP --> Home
+    SP --> Settings
+    SP --> Pomodoro
+    
+    SP -->|notifyListeners| Rebuild[UI Rebuild]
+    
+    style Providers fill:#FFCCBC
+```
+
+### SettingsProvider 상태 관리
+
+```mermaid
+stateDiagram-v2
+    [*] --> Loading: loadSettings()
+    Loading --> Loaded: 설정 로드 완료
+    
+    Loaded --> SensorToggle: toggleSensor()
+    SensorToggle --> Loaded: notifyListeners()
+    
+    Loaded --> NotificationToggle: toggleNotification()
+    NotificationToggle --> Loaded: notifyListeners()
+    
+    Loaded --> AutoNotificationToggle: setAutoNotification()
+    AutoNotificationToggle --> Loaded: notifyListeners()
+```
+
+### setState 패턴
+
+현재 프로젝트는 Flutter의 기본 상태 관리(`setState`)도 함께 사용합니다:
 
 ```dart
 class _HomeScreenState extends State<HomeScreen> {
@@ -203,10 +423,6 @@ class _HomeScreenState extends State<HomeScreen> {
 - `initState()`에서 초기 데이터 로드
 - 비동기 작업 완료 후 `setState()` 호출
 - 위젯 트리 최소 범위에서 상태 관리
-
-### Future Enhancement
-
-추후 확장 시 Provider, Riverpod, Bloc 등 고려 가능합니다.
 
 ## UI/UX Guidelines
 

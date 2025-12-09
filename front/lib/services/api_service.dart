@@ -13,7 +13,10 @@ import 'logger_service.dart';
 
 class ApiService {
   static String get baseUrl => ApiConfig.baseUrl;
-  static const _headers = {'Content-Type': 'application/json'};
+  static const _headers = {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',  // ngrok 경고 페이지 우회
+  };
 
   // ─────────────────────────────────────────────────────────────
   // HTTP 헬퍼 메서드
